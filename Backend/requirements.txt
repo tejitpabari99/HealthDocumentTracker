@@ -2,5 +2,8 @@ Flask==3.0.0
 azure-storage-blob==12.19.0
 python-dotenv==1.0.0
 Werkzeug==3.0.1
-azure-ai-projects>=2.0.0b3
 azure-identity
+azure-ai-vision-imageanalysis==1.0.0b3
+azure-ai-documentintelligence==1.0.0b1
+azure-search-documents==11.4.0
+openai==1.12.0
