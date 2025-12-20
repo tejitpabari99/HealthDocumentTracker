@@ -8,7 +8,8 @@ from azure.ai.vision.imageanalysis.models import VisualFeatures
 from azure.ai.documentintelligence import DocumentIntelligenceClient
 from azure.core.credentials import AzureKeyCredential
 from azure.search.documents import SearchClient
-from datetime import datetime
+from azure.storage.blob import generate_blob_sas, BlobSasPermissions
+from datetime import datetime, timedelta
 import uuid
 import os
 import io
@@ -23,7 +24,7 @@ from config import (
 # Create Blueprint
 upload_bp = Blueprint('upload', __name__)
 
-def extract_text_with_ocr(file_content, content_type, filename):
+def extract_text_with_ocr(file_content, content_type, filename, blob_url=None):
     """
     Extract text from document using Azure Document Intelligence or Computer Vision
     
@@ -31,6 +32,7 @@ def extract_text_with_ocr(file_content, content_type, filename):
         file_content: Binary content of the file
         content_type: MIME type of the file
         filename: Original filename to check extension
+        blob_url: Optional blob URL for large documents
     
     Returns:
         List of dictionaries with page_number and text for each page
@@ -41,28 +43,29 @@ def extract_text_with_ocr(file_content, content_type, filename):
         
         # For PDFs and document formats, use Azure Document Intelligence
         if file_extension in ['pdf', 'doc', 'docx'] or 'pdf' in content_type.lower():
-            return extract_text_from_document(file_content)
+            return extract_text_from_document(file_content, blob_url)
         
         # For images, use Azure Computer Vision
         elif file_extension in ['jpg', 'jpeg', 'png', 'bmp', 'tiff'] or 'image' in content_type.lower():
             text = extract_text_from_image(file_content)
             # Return as single page
-            return [{"page_number": 1, "text": text}]
+            return [{"page_number": 1, "text": text}] if text else []
         
         else:
             print(f"Warning: Unsupported file type for OCR: {file_extension}")
-            return [{"page_number": 1, "text": ""}]
+            return []
         
     except Exception as e:
         print(f"OCR extraction failed: {str(e)}")
-        return [{"page_number": 1, "text": ""}]
+        return []
 
-def extract_text_from_document(file_content):
+def extract_text_from_document(file_content, blob_url=None):
     """
     Extract text from PDF/DOC files using Azure Document Intelligence
     
     Args:
         file_content: Binary content of the document
+        blob_url: Optional blob URL for large documents (recommended for files > 4MB)
     
     Returns:
         List of dictionaries with page_number and text for each page
@@ -74,7 +77,7 @@ def extract_text_from_document(file_content):
         
         if not doc_intel_endpoint or not doc_intel_key:
             print("Warning: Azure Document Intelligence not configured, skipping document OCR")
-            return [{"page_number": 1, "text": ""}]
+            return []
         
         # Create Document Intelligence client
         client = DocumentIntelligenceClient(
@@ -82,12 +85,22 @@ def extract_text_from_document(file_content):
             credential=AzureKeyCredential(doc_intel_key)
         )
         
-        # Analyze document using prebuilt-read model
-        poller = client.begin_analyze_document(
-            "prebuilt-read",
-            analyze_request=file_content,
-            content_type="application/octet-stream"
-        )
+        # Use blob URL approach for large files (more reliable for 20+ page documents)
+        if blob_url:
+            print(f"Using blob URL approach for document: {blob_url}")
+            from azure.ai.documentintelligence.models import AnalyzeDocumentRequest
+            
+            poller = client.begin_analyze_document(
+                "prebuilt-read",
+                AnalyzeDocumentRequest(url_source=blob_url)
+            )
+        else:
+            # For smaller files, use direct content
+            poller = client.begin_analyze_document(
+                "prebuilt-read",
+                analyze_request=file_content,
+                content_type="application/octet-stream"
+            )
         
         result = poller.result()
         
@@ -103,23 +116,26 @@ def extract_text_from_document(file_content):
                     for line in page.lines:
                         page_text += line.content + "\n"
                 
-                pages_data.append({
-                    "page_number": page_number,
-                    "text": page_text.strip()
-                })
+                # Only add pages with actual text content
+                if page_text.strip():
+                    pages_data.append({
+                        "page_number": page_number,
+                        "text": page_text.strip()
+                    })
         
         # If no pages found but there's content, return as single page
-        if not pages_data and result.content:
+        if not pages_data and result.content and result.content.strip():
             pages_data.append({
                 "page_number": 1,
                 "text": result.content.strip()
             })
         
-        return pages_data if pages_data else [{"page_number": 1, "text": ""}]
+        return pages_data
         
     except Exception as e:
         print(f"Document Intelligence extraction failed: {str(e)}")
-        return [{"page_number": 1, "text": ""}]
+        # Return empty list on failure instead of placeholder
+        return []
 
 def extract_text_from_image(file_content):
     """
@@ -221,14 +237,61 @@ def upload_document():
         # Get blob URL
         blob_url = blob_client.url
         
+        # Check file size to determine OCR approach
+        file_size_mb = len(file_content) / (1024 * 1024)
+        use_blob_url = file_size_mb > 4  # Use blob URL for files larger than 4MB
+        
+        # Generate SAS URL for Document Intelligence to access the blob
+        blob_url_with_sas = None
+        if use_blob_url:
+            try:
+                # Generate SAS token valid for 1 hour with read permission
+                sas_token = generate_blob_sas(
+                    account_name=blob_service_client.account_name,
+                    container_name=AZURE_STORAGE_CONTAINER_NAME_RAW,
+                    blob_name=unique_filename,
+                    account_key=blob_service_client.credential.account_key,
+                    permission=BlobSasPermissions(read=True),
+                    expiry=datetime.utcnow() + timedelta(hours=1)
+                )
+                blob_url_with_sas = f"{blob_url}?{sas_token}"
+                print(f"Generated SAS URL for Document Intelligence (size: {file_size_mb:.2f}MB)")
+            except Exception as sas_error:
+                print(f"Warning: Failed to generate SAS token: {str(sas_error)}")
+                # Fall back to direct content approach
+                use_blob_url = False
+        
         # Extract text using OCR - returns list of pages
-        pages_data = extract_text_with_ocr(file_content, content_type, original_filename)
+        # For large files, pass SAS URL to use URL-based analysis
+        pages_data = extract_text_with_ocr(
+            file_content, 
+            content_type, 
+            original_filename,
+            blob_url_with_sas if use_blob_url else None
+        )
         
         # Generate a unique ReportId for this document (connects all pages)
         report_id = str(uuid.uuid4())
         upload_timestamp = datetime.utcnow().isoformat() + "Z"
         
-        # Create one search document per page
+        # Only create search documents if OCR extracted text
+        if not pages_data:
+            # OCR failed or returned no content - delete the blob
+            try:
+                blob_client.delete_blob()
+                print(f"Deleted blob {unique_filename} due to OCR failure")
+            except Exception as delete_error:
+                print(f"Warning: Failed to delete blob after OCR failure: {str(delete_error)}")
+            
+            return jsonify({
+                'error': 'OCR extraction failed',
+                'message': 'No text could be extracted from the document. File has been removed from storage.',
+                'details': 'The document may be a scanned image without text, corrupted, or in an unsupported format.',
+                'original_filename': original_filename,
+                'file_size_mb': round(file_size_mb, 2)
+            }), 400
+        
+        # Create one search document per page (only for pages with content)
         search_documents = []
         total_text_length = 0
         
@@ -236,6 +299,11 @@ def upload_document():
             page_document_id = str(uuid.uuid4())
             page_text = page_data.get('text', '')
             page_number = page_data.get('page_number', 1)
+            
+            # Skip empty pages
+            if not page_text.strip():
+                continue
+                
             total_text_length += len(page_text)
             
             search_document = {
@@ -251,16 +319,43 @@ def upload_document():
             
             search_documents.append(search_document)
         
-        # Upload all page documents to Azure AI Search
+        # Only upload to Azure AI Search if we have documents with content
         uploaded_pages = 0
-        try:
-            search_client = get_search_client()
-            result = search_client.upload_documents(documents=search_documents)
-            uploaded_pages = len(search_documents)
-            print(f"Uploaded {uploaded_pages} pages to Azure AI Search with ReportId: {report_id}")
-        except Exception as search_error:
-            print(f"Warning: Failed to upload to Azure AI Search: {str(search_error)}")
-            # Continue even if search upload fails
+        if search_documents:
+            try:
+                search_client = get_search_client()
+                result = search_client.upload_documents(documents=search_documents)
+                uploaded_pages = len(search_documents)
+                print(f"Uploaded {uploaded_pages} pages to Azure AI Search with ReportId: {report_id}")
+            except Exception as search_error:
+                print(f"Warning: Failed to upload to Azure AI Search: {str(search_error)}")
+                return jsonify({
+                    'message': 'File uploaded successfully but search indexing failed',
+                    'warning': f'Document is stored in blob storage but could not be indexed: {str(search_error)}',
+                    'blob_name': unique_filename,
+                    'original_filename': original_filename,
+                    'blob_url': blob_url,
+                    'report_id': report_id,
+                    'pages_uploaded': 0,
+                    'container': AZURE_STORAGE_CONTAINER_NAME_RAW,
+                    'extracted_text_length': total_text_length
+                }), 201
+        else:
+            # Pages were extracted but all were empty - delete the blob
+            try:
+                blob_client.delete_blob()
+                print(f"Deleted blob {unique_filename} due to empty pages")
+            except Exception as delete_error:
+                print(f"Warning: Failed to delete blob after empty pages: {str(delete_error)}")
+            
+            return jsonify({
+                'error': 'No text content found',
+                'message': 'All pages in the document were empty. File has been removed from storage.',
+                'details': 'The document may contain only images without text or be blank pages.',
+                'original_filename': original_filename,
+                'pages_processed': len(pages_data),
+                'file_size_mb': round(file_size_mb, 2)
+            }), 400
         
         return jsonify({
             'message': 'File uploaded successfully',
@@ -270,7 +365,8 @@ def upload_document():
             'report_id': report_id,
             'pages_uploaded': uploaded_pages,
             'container': AZURE_STORAGE_CONTAINER_NAME_RAW,
-            'extracted_text_length': total_text_length
+            'extracted_text_length': total_text_length,
+            'ocr_method': 'blob_url' if use_blob_url else 'direct_content'
         }), 201
         
     except ValueError as ve:

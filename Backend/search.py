@@ -79,10 +79,12 @@ def search_documents():
         fileName = ""
         for result in search_results:
             # Collect search result
-            extractedText = result.get("ExtractedText", ""),
-            blobUri = result.get("BlobUri", ""),
+            extractedText = result.get("ExtractedText", "")
+            blobUri = result.get("BlobUri", "")
             fileName = result.get("FileName", "")
             break
+
+        print(extractedText)
 
         answer_system_prompt = """You are a medical information extraction assistant. You will be given:
             1. A user's question.
@@ -136,8 +138,9 @@ def search_documents():
         
         formatted_answer_json = json.loads(formatted_answer)
 
-        answer_text = formatted_answer_json["answer_text"]
-        blob_uri = formatted_answer_json["document_link"]
+        answer_text = formatted_answer_json.get("answer_text") or "No answer could be generated from the documents."
+        blob_uri = formatted_answer_json.get("document_link")
+        sas_url = None
         if blob_uri:
             try:
                 # Extract blob name from URI
@@ -163,7 +166,8 @@ def search_documents():
 
         # Format final message with document references
         final_message = answer_text
-        final_message += f"\n\n**Document Reference: {sas_url}**"
+        if sas_url:
+            final_message += f"\n\n**Document Reference: {sas_url}**"
         
         print(final_message)
         return jsonify({
