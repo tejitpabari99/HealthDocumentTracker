@@ -8,6 +8,7 @@ import os
 # Import blueprints
 from Backend.upload import upload_bp
 from Backend.search import search_bp
+from Backend.delete import delete_bp
 
 # Initialize Flask application
 app = Flask(__name__)
@@ -15,6 +16,7 @@ app = Flask(__name__)
 # Register blueprints
 app.register_blueprint(upload_bp)
 app.register_blueprint(search_bp)
+app.register_blueprint(delete_bp)
 
 @app.route('/', methods=['GET'])
 def index():
