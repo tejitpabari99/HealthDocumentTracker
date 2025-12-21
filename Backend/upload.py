@@ -13,7 +13,7 @@ from datetime import datetime, timedelta
 import uuid
 import os
 import io
-from config import (
+from Backend.config import (
     allowed_file,
     get_blob_service_client,
     get_search_client,
