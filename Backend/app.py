@@ -16,6 +16,11 @@ app = Flask(__name__)
 app.register_blueprint(upload_bp)
 app.register_blueprint(search_bp)
 
+@app.route('/', methods=['GET'])
+def index():
+    """Root endpoint"""
+    return jsonify({'message': 'Welcome to the Health Document Tracker API'}), 200
+
 @app.route('/health', methods=['GET'])
 def health_check():
     """Health check endpoint"""
