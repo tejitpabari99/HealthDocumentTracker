@@ -6,8 +6,8 @@ from flask import Flask, jsonify
 import os
 
 # Import blueprints
-from upload import upload_bp
-from search import search_bp
+from Backend.upload import upload_bp
+from Backend.search import search_bp
 
 # Initialize Flask application
 app = Flask(__name__)

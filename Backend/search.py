@@ -6,7 +6,7 @@ from azure.storage.blob import generate_blob_sas, BlobSasPermissions
 from datetime import datetime, timedelta
 import os
 import json
-from config import (
+from Backend.config import (
     get_blob_service_client,
     get_search_client,
     get_openai_client,
