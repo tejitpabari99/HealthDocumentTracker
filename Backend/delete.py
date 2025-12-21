@@ -2,7 +2,7 @@
 Delete API endpoint for removing documents from both Azure Search and Blob Storage
 """
 from flask import Blueprint, request, jsonify
-from config import (
+from Backend.config import (
     get_blob_service_client,
     get_search_client,
     AZURE_STORAGE_CONTAINER_NAME_RAW
