@@ -39,7 +39,7 @@ def get_blob_service_client():
         raise ValueError("Azure Storage connection string not configured")
     return BlobServiceClient.from_connection_string(AZURE_STORAGE_CONNECTION_STRING)
 
-def get_search_client():
+def get_search_client() -> SearchClient:
     """Initialize and return Azure AI Search Client"""
     if not AZURE_SEARCH_ENDPOINT or not AZURE_SEARCH_KEY:
         raise ValueError("Azure AI Search endpoint or key not configured")

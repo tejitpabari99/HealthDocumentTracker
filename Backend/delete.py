@@ -7,11 +7,13 @@ from Backend.config import (
     get_search_client,
     AZURE_STORAGE_CONTAINER_NAME_RAW
 )
+from azure.search.documents.models import IndexingResult
+from azure.search.documents import SearchClient
 
 # Create Blueprint
 delete_bp = Blueprint('delete', __name__)
 
-@delete_bp.route('/documents/delete', methods=['POST'])
+@delete_bp.route('/documents/delete', methods=['DELETE'])
 def delete_document():
     """
     Delete a document from both Azure AI Search and Azure Blob Storage
@@ -34,7 +36,7 @@ def delete_document():
             return jsonify({'error': 'SearchIds is required and must be a non-empty list'}), 400
         
         if not isinstance(search_ids, list):
-            return jsonify({'error': 'SearchIds must be a list'}), 400
+            return jsonify({'error': 'SearchIds must be a list.'}), 400
         
         # Validate BlobId
         if not blob_id:
@@ -44,19 +46,26 @@ def delete_document():
         
         # Track deletion results
         search_deleted_count = 0
-        search_failed_ids = []
+        search_delete_failed_ids = []
         blob_deleted = False
         errors = []
         
         # Delete from Azure AI Search (loop through all SearchIds)
         try:
-            search_client = get_search_client()
+            search_client: SearchClient = get_search_client()
             
             # Prepare documents for batch deletion
             documents_to_delete = [{"id": search_id.strip()} for search_id in search_ids if search_id.strip()]
             
             if documents_to_delete:
-                result = search_client.delete_documents(documents=documents_to_delete)
+                result: list[IndexingResult] = search_client.delete_documents(documents=documents_to_delete)
+                # Check if status code = 200 for each result
+                if any(r.status_code != 200 for r in result):
+                    failed_ids = [documents_to_delete[i]['id'] for i, r in enumerate(result) if r.status_code != 200]
+                    search_delete_failed_ids.extend(failed_ids)
+                    error_msg = f"Failed to delete some documents from Azure AI Search: {failed_ids}"
+                    print(error_msg)
+                    errors.append(error_msg)
                 search_deleted_count = len(documents_to_delete)
                 print(f"Deleted {search_deleted_count} documents from Azure AI Search")
             else:
@@ -66,7 +75,7 @@ def delete_document():
             error_msg = f"Failed to delete from Azure AI Search: {str(search_error)}"
             print(error_msg)
             errors.append(error_msg)
-            search_failed_ids = search_ids
+            search_delete_failed_ids.extend(search_ids)
         
         # Delete from Azure Blob Storage
         try:
@@ -99,7 +108,7 @@ def delete_document():
                 'warning': 'Document was deleted from some services but not all',
                 'search_ids_requested': search_ids,
                 'search_deleted_count': search_deleted_count,
-                'search_failed_ids': search_failed_ids,
+                'search_delete_failed_ids': search_delete_failed_ids,
                 'blob_id': blob_id,
                 'search_deleted': search_deleted_count > 0,
                 'blob_deleted': blob_deleted,
