@@ -3,6 +3,7 @@ Main Flask application file
 Imports and registers blueprints for different API endpoints
 """
 from flask import Flask, jsonify
+from flask_cors import CORS
 import os
 
 # Import blueprints
@@ -11,6 +12,15 @@ from Backend.search import search_bp
 
 # Initialize Flask application
 app = Flask(__name__)
+
+# Enable CORS for all routes
+CORS(app, resources={
+    r"/*": {
+        "origins": "*",  # Allow all origins (change this to specific origins in production)
+        "methods": ["GET", "POST", "PUT", "DELETE", "OPTIONS"],
+        "allow_headers": ["Content-Type", "Authorization"]
+    }
+})
 
 # Register blueprints
 app.register_blueprint(upload_bp)
