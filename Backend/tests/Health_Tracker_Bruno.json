@@ -1,0 +1,220 @@
+{
+  "name": "Health Tracker",
+  "version": "1",
+  "items": [
+    {
+      "type": "http",
+      "name": "DeleteAzureSearchDirect",
+      "filename": "DeleteAzureSearchDirect.bru",
+      "seq": 8,
+      "settings": {},
+      "tags": [],
+      "examples": [],
+      "request": {
+        "url": "https://health-tracker-search.search.windows.net/indexes/searchextractedtext/docs/index?api-version=2023-11-01",
+        "method": "POST",
+        "headers": [
+          {
+            "name": "api-key",
+            "value": "{{api-key}}",
+            "enabled": true
+          }
+        ],
+        "params": [
+          {
+            "name": "api-version",
+            "value": "2023-11-01",
+            "type": "query",
+            "enabled": true
+          }
+        ],
+        "body": {
+          "mode": "json",
+          "json": "{\n  \"value\": [\n    {\n      \"@search.action\": \"delete\",\n      \"id\": \"46660151-5c66-41ee-a088-2b16db13f63d\"\n    }\n  ]\n}",
+          "formUrlEncoded": [],
+          "multipartForm": [],
+          "file": []
+        },
+        "script": {},
+        "vars": {},
+        "assertions": [],
+        "tests": "",
+        "docs": "",
+        "auth": {
+          "mode": "none"
+        }
+      }
+    },
+    {
+      "type": "http",
+      "name": "SearchAllAzureDirect",
+      "filename": "SearchAllAzureDirect.bru",
+      "seq": 6,
+      "settings": {},
+      "tags": [],
+      "examples": [],
+      "request": {
+        "url": "https://health-tracker-search.search.windows.net/indexes/searchextractedtext/docs/search?api-version=2023-11-01",
+        "method": "POST",
+        "headers": [
+          {
+            "name": "api-key",
+            "value": "{{api-key}}",
+            "enabled": true
+          }
+        ],
+        "params": [
+          {
+            "name": "api-version",
+            "value": "2023-11-01",
+            "type": "query",
+            "enabled": true
+          }
+        ],
+        "body": {
+          "mode": "json",
+          "json": "{\n  \"search\": \"*\",\n  \"select\": \"*\"\n}",
+          "formUrlEncoded": [],
+          "multipartForm": [],
+          "file": []
+        },
+        "script": {},
+        "vars": {},
+        "assertions": [],
+        "tests": "",
+        "docs": "",
+        "auth": {
+          "mode": "none"
+        }
+      }
+    },
+    {
+      "type": "http",
+      "name": "SearchViaAPI",
+      "filename": "SearchViaAPI.bru",
+      "seq": 5,
+      "settings": {},
+      "tags": [],
+      "examples": [],
+      "request": {
+        "url": "http://localhost:5000/documents/search",
+        "method": "POST",
+        "headers": [],
+        "params": [],
+        "body": {
+          "mode": "json",
+          "json": "{\n  \"query\":\"RBC in stool?\"\n}",
+          "formUrlEncoded": [],
+          "multipartForm": [],
+          "file": []
+        },
+        "script": {},
+        "vars": {},
+        "assertions": [],
+        "tests": "",
+        "docs": "",
+        "auth": {
+          "mode": "none"
+        }
+      }
+    },
+    {
+      "type": "http",
+      "name": "UploadAzureDirect",
+      "filename": "UploadAzureDirect.bru",
+      "seq": 7,
+      "settings": {},
+      "tags": [],
+      "examples": [],
+      "request": {
+        "url": "https://<service>.search.windows.net/indexes/<indexname>/docs/index?api-version=2023-07-01-Preview",
+        "method": "POST",
+        "headers": [],
+        "params": [
+          {
+            "name": "api-version",
+            "value": "2023-07-01-Preview",
+            "type": "query",
+            "enabled": true
+          }
+        ],
+        "body": {
+          "mode": "none",
+          "formUrlEncoded": [],
+          "multipartForm": [],
+          "file": []
+        },
+        "script": {},
+        "vars": {},
+        "assertions": [],
+        "tests": "",
+        "docs": "",
+        "auth": {
+          "mode": "none"
+        }
+      }
+    },
+    {
+      "type": "http",
+      "name": "UploadViaAPI",
+      "filename": "UploadViaAPI.bru",
+      "seq": 4,
+      "settings": {},
+      "tags": [],
+      "examples": [],
+      "request": {
+        "url": "http://localhost:5000/documents",
+        "method": "POST",
+        "headers": [],
+        "params": [],
+        "body": {
+          "mode": "multipartForm",
+          "formUrlEncoded": [],
+          "multipartForm": [
+            {
+              "type": "file",
+              "name": "file",
+              "value": [
+                "C:\\Users\\gitikabose\\OneDrive - Microsoft\\Desktop\\Projects\\HealthTrackerDocs\\Blood Report Sandeep.pdf"
+              ],
+              "enabled": true
+            }
+          ],
+          "file": []
+        },
+        "script": {},
+        "vars": {},
+        "assertions": [],
+        "tests": "",
+        "docs": "",
+        "auth": {
+          "mode": "none"
+        }
+      }
+    }
+  ],
+  "activeEnvironmentUid": "uFORpIh0qEZ4YP8Sgrk3l",
+  "environments": [
+    {
+      "variables": [
+        {
+          "name": "api-key",
+          "value": "",
+          "enabled": true,
+          "secret": true,
+          "type": "text"
+        }
+      ],
+      "name": "HealthTracker"
+    }
+  ],
+  "brunoConfig": {
+    "version": "1",
+    "name": "Health Tracker",
+    "type": "collection",
+    "ignore": [
+      "node_modules",
+      ".git"
+    ]
+  }
+}
