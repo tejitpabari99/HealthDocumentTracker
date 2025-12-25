@@ -8,3 +8,11 @@ azure-ai-vision-imageanalysis==1.0.0b3
 azure-ai-documentintelligence==1.0.0b1
 azure-search-documents==11.4.0
 openai>=1.0.0
+azure-cosmos==4.5.1
+pydantic>=2.10.4
+email-validator==2.1.0
+
+# Logging dependencies
+opencensus-ext-azure>=1.1.13
+opencensus-ext-flask>=0.8.1
+python-json-logger>=2.0.7
