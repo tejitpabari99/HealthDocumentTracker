@@ -1,87 +1,41 @@
 import React, { useState, useEffect } from 'react';
-import { StyleSheet, View, StatusBar } from 'react-native';
-import AsyncStorage from '@react-native-async-storage/async-storage';
+import { View, StatusBar, ActivityIndicator, TouchableOpacity } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Home, DocumentStore, Profile, UploadPage, DocumentViewer } from '@/components/screens';
 import { Header, BottomNav, Disclaimer } from '@/components/navigation';
 import { Document, UserProfile, TabType, PageType } from '@/types';
-
-const STORAGE_KEYS = {
-  DOCUMENTS: '@health_docs_documents',
-  PROFILE: '@health_docs_profile',
-};
+import { ThemedView, ThemedText } from '@/components/ui';
+import { TEST_USER } from '@/config/api';
+import { styles } from './styles';
 
 export default function HomeScreen() {
   const insets = useSafeAreaInsets();
   const [activeTab, setActiveTab] = useState<TabType>('home');
   const [currentPage, setCurrentPage] = useState<PageType>('main');
-  const [documents, setDocuments] = useState<Document[]>([]);
   const [selectedDocument, setSelectedDocument] = useState<Document | null>(null);
   const [showDisclaimer, setShowDisclaimer] = useState(false);
+  const [isAuthenticated, setIsAuthenticated] = useState(false);
+  const [isAuthenticating, setIsAuthenticating] = useState(true);
   const [userProfile, setUserProfile] = useState<UserProfile>({
-    firstName: 'John',
-    lastName: 'Doe',
-    email: 'john.doe@example.com',
+    firstName: 'Test',
+    lastName: 'User',
+    email: TEST_USER.email,
   });
 
-  // Load data from storage on mount
+  // Simulate authentication check on mount
   useEffect(() => {
-    loadStoredData();
+    // Simulate checking for authentication
+    const checkAuth = async () => {
+      // For now, just show loading screen for 500ms
+      await new Promise(resolve => setTimeout(resolve, 500));
+      setIsAuthenticating(false);
+    };
+    
+    checkAuth();
   }, []);
 
-  // Save documents whenever they change
-  useEffect(() => {
-    saveDocuments();
-  }, [documents]);
-
-  // Save profile whenever it changes
-  useEffect(() => {
-    saveProfile();
-  }, [userProfile]);
-
-  const loadStoredData = async () => {
-    try {
-      const storedDocs = await AsyncStorage.getItem(STORAGE_KEYS.DOCUMENTS);
-      const storedProfile = await AsyncStorage.getItem(STORAGE_KEYS.PROFILE);
-
-      if (storedDocs) {
-        const parsedDocs = JSON.parse(storedDocs);
-        // Convert date strings back to Date objects
-        const docsWithDates = parsedDocs.map((doc: any) => ({
-          ...doc,
-          uploadedAt: new Date(doc.uploadedAt),
-        }));
-        setDocuments(docsWithDates);
-      }
-
-      if (storedProfile) {
-        setUserProfile(JSON.parse(storedProfile));
-      }
-    } catch (error) {
-      console.error('Error loading stored data:', error);
-    }
-  };
-
-  const saveDocuments = async () => {
-    try {
-      await AsyncStorage.setItem(
-        STORAGE_KEYS.DOCUMENTS,
-        JSON.stringify(documents)
-      );
-    } catch (error) {
-      console.error('Error saving documents:', error);
-    }
-  };
-
-  const saveProfile = async () => {
-    try {
-      await AsyncStorage.setItem(
-        STORAGE_KEYS.PROFILE,
-        JSON.stringify(userProfile)
-      );
-    } catch (error) {
-      console.error('Error saving profile:', error);
-    }
+  const handleTestUserLogin = () => {
+    setIsAuthenticated(true);
   };
 
   const handleProfileClick = () => {
@@ -97,34 +51,24 @@ export default function HomeScreen() {
     setCurrentPage('viewer');
   };
 
-  const handleDeleteDocument = (docId: string) => {
-    setDocuments((prev) => prev.filter((doc) => doc.id !== docId));
+  const handleDeleteDocument = async (docId: string) => {
     if (selectedDocument?.id === docId) {
       setCurrentPage('main');
       setSelectedDocument(null);
+      setActiveTab('documents');
     }
   };
 
-  const handleUploadSubmit = (
-    files: { uri: string; name: string; type: string }[]
-  ) => {
-    const newDocs: Document[] = files.map((file, index) => ({
-      id: `doc-${Date.now()}-${index}`,
-      name: file.name,
-      type: file.type === 'image' ? 'image' : 'pdf',
-      uri: file.uri,
-      thumbnail: file.uri,
-      uploadedAt: new Date(),
-    }));
-
-    setDocuments((prev) => [...prev, ...newDocs]);
+  const handleUploadSubmit = () => {
+    // Navigate back to documents list
     setCurrentPage('main');
-    setActiveTab('home');
+    setActiveTab('documents');
+    
+    // Show success message
     setShowDisclaimer(true);
-
     setTimeout(() => {
       setShowDisclaimer(false);
-    }, 5000);
+    }, 3000);
   };
 
   const handleBackToMain = () => {
@@ -135,6 +79,59 @@ export default function HomeScreen() {
   const handleUpdateProfile = (profile: UserProfile) => {
     setUserProfile(profile);
   };
+
+  // Loading screen while checking authentication
+  if (isAuthenticating) {
+    return (
+      <View style={[styles.loadingContainer, { paddingTop: insets.top }]}>
+        <StatusBar barStyle="dark-content" />
+        <ActivityIndicator size="large" color="#007AFF" />
+        <ThemedText style={styles.loadingText}>Loading...</ThemedText>
+      </View>
+    );
+  }
+
+  // Authentication screen with test user button
+  if (!isAuthenticated) {
+    return (
+      <View style={[styles.authContainer, { paddingTop: insets.top }]}>
+        <StatusBar barStyle="dark-content" />
+        <View style={styles.authContent}>
+          <ThemedText type="title" style={styles.authTitle}>
+            Health Document Tracker
+          </ThemedText>
+          <ThemedText style={styles.authSubtitle}>
+            Securely store and search your health documents
+          </ThemedText>
+          
+          <View style={styles.authCard}>
+            <ThemedText style={styles.authCardTitle}>Test Mode</ThemedText>
+            <ThemedText style={styles.authCardText}>
+              For testing purposes, you can log in as a test user:
+            </ThemedText>
+            <View style={styles.userInfoBox}>
+              <ThemedText style={styles.userInfoLabel}>User ID:</ThemedText>
+              <ThemedText style={styles.userInfoValue}>{TEST_USER.id}</ThemedText>
+              <ThemedText style={styles.userInfoLabel}>Email:</ThemedText>
+              <ThemedText style={styles.userInfoValue}>{TEST_USER.email}</ThemedText>
+            </View>
+            <TouchableOpacity
+              style={styles.loginButton}
+              onPress={handleTestUserLogin}
+            >
+              <ThemedText style={styles.loginButtonText}>
+                Continue as Test User
+              </ThemedText>
+            </TouchableOpacity>
+          </View>
+
+          <ThemedText style={styles.authNote}>
+            Note: In production, this will be replaced with proper authentication
+          </ThemedText>
+        </View>
+      </View>
+    );
+  }
 
   // Render different pages based on currentPage state
   if (currentPage === 'profile') {
@@ -176,7 +173,6 @@ export default function HomeScreen() {
           <Home />
         ) : (
           <DocumentStore
-            documents={documents}
             onDocumentClick={handleDocumentClick}
             onDeleteDocument={handleDeleteDocument}
           />
@@ -193,17 +189,3 @@ export default function HomeScreen() {
     </View>
   );
 }
-
-const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: '#ffffff',
-  },
-  header: {
-    backgroundColor: '#ffffff',
-  },
-  content: {
-    flex: 1,
-    backgroundColor: '#ffffff',
-  },
-});

@@ -227,9 +227,18 @@ class SearchService:
             logger.debug(f"Generating SAS URL for blob")
             blob_service_client = get_blob_service_client()
             
-            # Extract blob name from URI
+            # Extract blob name from URI (now includes user directory path like "userId/filename.pdf")
+            # Format: https://account.blob.core.windows.net/container/userId/filename.pdf
             blob_parts = blob_uri.split('/')
-            blob_name = blob_parts[-1] if blob_parts else None
+            
+            # Find container name in URL and extract everything after it
+            try:
+                container_index = blob_parts.index(container_name)
+                # Everything after container name is the blob path (userId/filename.pdf)
+                blob_name = '/'.join(blob_parts[container_index + 1:])
+            except (ValueError, IndexError):
+                # Fallback: try to extract last part only
+                blob_name = blob_parts[-1] if blob_parts else None
             
             if not blob_name:
                 logger.warning("Could not extract blob name from URI")
@@ -246,7 +255,7 @@ class SearchService:
             )
             
             sas_url = f"{blob_uri}?{sas_token}"
-            logger.debug("SAS URL generated successfully")
+            logger.debug(f"SAS URL generated successfully for blob: {blob_name}")
             return sas_url
             
         except Exception as e:

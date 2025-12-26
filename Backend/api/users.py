@@ -99,42 +99,6 @@ def get_user(user_id):
         logger.error(f"Failed to retrieve user {user_id}: {str(e)}")
         return jsonify({'error': f'Failed to retrieve user: {str(e)}'}), 500
 
-@users_bp.route('/users', methods=['GET'])
-def list_users():
-    """
-    List all users with pagination support.
-    
-    Query parameters:
-        limit: Maximum number of users to return (default: 100)
-        continuationToken: Token for pagination
-    
-    Returns: List of users with pagination info
-    """
-    try:
-        logger.info("List users request received")
-        
-        # Get query parameters
-        limit = request.args.get('limit', 100, type=int)
-        continuation_token = request.args.get('continuationToken', None)
-        
-        # Validate limit
-        if limit < 1 or limit > 1000:
-            logger.warning(f"Invalid limit value: {limit}")
-            return jsonify({'error': 'Limit must be between 1 and 1000'}), 400
-        
-        # Get users from service
-        result = UserService.list_users(limit=limit, continuation_token=continuation_token)
-        
-        logger.info(f"Listed {result.get('count', 0)} users")
-        return jsonify(result), 200
-        
-    except ValueError as ve:
-        logger.error(f"Failed to list users: {str(ve)}")
-        return jsonify({'error': str(ve)}), 500
-    except Exception as e:
-        logger.error(f"Failed to list users: {str(e)}")
-        return jsonify({'error': f'Failed to list users: {str(e)}'}), 500
-
 @users_bp.route('/users/email/<email>', methods=['GET'])
 def get_user_by_email(email):
     """

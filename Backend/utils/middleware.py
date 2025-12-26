@@ -2,11 +2,11 @@
 Request/Response logging middleware for Flask.
 
 Features:
-- Log all incoming requests with comprehensive details
-- Request URL, headers, query parameters
-- Request body (JSON or file information)
-- Generate and track correlation IDs
-- Log response status, timing, headers, and body
+- Log critical request/response components only
+- Request: method, URL, path, userId, content_type, content_length
+- Response: status_code, duration_ms, content_type, content_length
+- Generate and track correlation IDs with tracing
+- Integration with OpenTelemetry spans
 - Mask sensitive data in logs
 - File upload tracking with size information
 """
@@ -21,6 +21,14 @@ from typing import Optional, Dict, Any, List
 from werkzeug.datastructures import FileStorage
 
 logger = logging.getLogger(__name__)
+
+# Import tracing utilities
+try:
+    from Backend.utils.tracing import add_span_attributes, add_span_event, set_span_error, get_trace_context
+    TRACING_ENABLED = True
+except ImportError:
+    TRACING_ENABLED = False
+    logger.warning("Tracing utilities not available")
 
 # Sensitive fields to mask in logs
 SENSITIVE_FIELDS = {
@@ -153,34 +161,52 @@ def get_request_data() -> Optional[Dict[str, Any]]:
         return None
 
 def log_request():
-    """Log incoming request details and set up correlation ID."""
+    """Log critical incoming request details and set up correlation ID with tracing."""
     # Generate correlation ID
     correlation_id = generate_correlation_id()
     g.correlation_id = correlation_id
     g.start_time = time.time()
     
-    # Extract request details
-    request_files = get_request_files()
+    # Get user_id if available (set by authentication middleware)
+    user_id = getattr(g, 'user_id', None)
     
-    # Build comprehensive request details
+    # Get trace context if tracing is enabled
+    trace_context = {}
+    if TRACING_ENABLED:
+        trace_context = get_trace_context()
+        # Add trace context to g for later use
+        g.trace_id = trace_context.get('trace_id')
+        g.span_id = trace_context.get('span_id')
+    
+    # Build minimal request details - log only critical components
     request_details = {
         'correlation_id': correlation_id,
+        'trace_id': trace_context.get('trace_id'),
+        'span_id': trace_context.get('span_id'),
         'method': request.method,
         'url': request.url,
         'path': request.path,
-        'base_url': request.base_url,
-        'remote_addr': request.remote_addr,
-        'scheme': request.scheme,
-        'query_params': dict(request.args) if request.args else None,
-        'headers': mask_headers(dict(request.headers)),
+        'user_id': user_id,
         'content_type': request.content_type,
-        'content_length': request.content_length,
-        'user_agent': request.headers.get('User-Agent', 'Unknown')
+        'content_length': request.content_length
     }
     
-    # Add file information if present
+    # Add file information if present (critical for file uploads)
+    request_files = get_request_files()
     if request_files:
         request_details['uploaded_files'] = request_files
+    
+    # Add request attributes to current span if tracing is enabled
+    if TRACING_ENABLED:
+        add_span_attributes(
+            correlation_id=correlation_id,
+            user_id=user_id or 'anonymous',
+            http_method=request.method,
+            http_path=request.path,
+            http_url=request.url,
+            content_type=request.content_type or 'none',
+            content_length=request.content_length or 0
+        )
     
     # Build log message
     log_extra = {
@@ -189,13 +215,14 @@ def log_request():
     
     # Log with appropriate detail level
     logger.info(
-        f"→ REQUEST: {request.method} {request.url}",
+        f"→ REQUEST: {request.method} {request.path}",
         extra=log_extra
     )
 
 def log_response(response):
     """
-    Log response details including timing, headers, and body.
+    Log critical response details - status code, timing, content metadata.
+    Does NOT log response body to avoid over-logging.
     
     Args:
         response: Flask response object
@@ -206,11 +233,16 @@ def log_response(response):
     # Calculate request duration
     if hasattr(g, 'start_time'):
         duration = time.time() - g.start_time
+        duration_ms = round(duration * 1000, 2)
     else:
         duration = 0
+        duration_ms = 0
     
-    # Get correlation ID
+    # Get correlation ID and trace context
     correlation_id = getattr(g, 'correlation_id', 'unknown')
+    trace_id = getattr(g, 'trace_id', None)
+    span_id = getattr(g, 'span_id', None)
+    user_id = getattr(g, 'user_id', None)
     
     # Determine log level based on status code
     status_code = response.status_code
@@ -221,48 +253,36 @@ def log_response(response):
     else:
         log_level = logging.INFO
     
-    # Extract response body (if possible and reasonable size)
-    response_body = None
-    try:
-        if response.content_type and 'application/json' in response.content_type:
-            if response.content_length and response.content_length < 100000:  # Less than 100KB
-                response_data = response.get_data(as_text=True)
-                if response_data:
-                    try:
-                        response_body = json.loads(response_data)
-                        # Mask sensitive data in response
-                        response_body = mask_sensitive_data(response_body)
-                    except json.JSONDecodeError:
-                        response_body = {"_note": "Invalid JSON response", "preview": response_data[:1000]}
-            else:
-                response_body = {"_note": "Response too large to log", "size_bytes": response.content_length}
-        elif response.content_type and 'text/' in response.content_type:
-            if response.content_length and response.content_length < 10000:  # Less than 10KB
-                response_body = {"text": response.get_data(as_text=True)}
-            else:
-                response_body = {"_note": "Text response too large to log", "size_bytes": response.content_length}
-    except Exception as e:
-        logger.debug(f"Failed to extract response body: {str(e)}")
-        response_body = {"_note": "Failed to extract response body"}
-    
-    # Build comprehensive response details
+    # Build minimal response details - log only critical components
     response_details = {
         'correlation_id': correlation_id,
+        'trace_id': trace_id,
+        'span_id': span_id,
         'method': request.method,
         'url': request.url,
         'path': request.path,
+        'user_id': user_id,
         'status_code': status_code,
-        'status': response.status,
-        'duration_ms': round(duration * 1000, 2),
-        'duration_seconds': round(duration, 3),
-        'response_headers': dict(response.headers),
-        'content_type': response.content_type,
-        'content_length': response.content_length
+        'duration_ms': duration_ms,
+        'response_content_type': response.content_type,
+        'response_content_length': response.content_length
     }
     
-    # Add response body if extracted
-    if response_body:
-        response_details['response_body'] = response_body
+    # Add response attributes to current span if tracing is enabled
+    if TRACING_ENABLED:
+        add_span_attributes(
+            http_status_code=status_code,
+            duration_ms=duration_ms,
+            response_content_type=response.content_type or 'none',
+            response_content_length=response.content_length or 0
+        )
+        
+        # Add event for status
+        if status_code >= 400:
+            add_span_event("http_error", {
+                "status_code": status_code,
+                "path": request.path
+            })
     
     # Build log message
     log_extra = {
@@ -274,12 +294,16 @@ def log_response(response):
     
     logger.log(
         log_level,
-        f"← RESPONSE: {status_indicator} {request.method} {request.path} - {status_code} ({round(duration * 1000, 2)}ms)",
+        f"← RESPONSE: {status_indicator} {request.method} {request.path} - {status_code} ({duration_ms}ms)",
         extra=log_extra
     )
     
-    # Add correlation ID to response headers
+    # Add correlation and trace IDs to response headers
     response.headers['X-Correlation-ID'] = correlation_id
+    if trace_id:
+        response.headers['X-Trace-ID'] = trace_id
+    if span_id:
+        response.headers['X-Span-ID'] = span_id
     
     return response
 
@@ -392,12 +416,18 @@ def setup_request_logging(app):
     def log_exception(error):
         """Log unhandled exceptions with full context."""
         correlation_id = getattr(g, 'correlation_id', 'unknown')
+        trace_id = getattr(g, 'trace_id', None)
+        
+        # Mark span as error if tracing is enabled
+        if TRACING_ENABLED:
+            set_span_error(error)
         
         logger.error(
             f"Unhandled exception: {str(error)}",
             extra={
                 'custom_dimensions': {
                     'correlation_id': correlation_id,
+                    'trace_id': trace_id,
                     'method': request.method,
                     'path': request.path,
                     'exception_type': type(error).__name__

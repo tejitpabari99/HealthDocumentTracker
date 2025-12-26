@@ -102,38 +102,6 @@ def get_search_activity(search_id):
     except Exception as e:
         return jsonify({'error': f'Failed to retrieve search activity: {str(e)}'}), 500
 
-@search_activity_bp.route('/search-activities', methods=['GET'])
-@require_auth
-def list_search_activities():
-    """
-    List all search activities for the authenticated user.
-    
-    Authentication: Required (via X-User-Id header in dev, JWT in production)
-    
-    Query Parameters:
-        limit: (optional) Maximum number of activities to return (default: 100)
-    
-    Returns: JSON with list of search activities
-    """
-    try:
-        # Get user_id from middleware (extracted from auth)
-        user_id = g.user_id
-        
-        # Get query parameters
-        limit = request.args.get('limit', 100, type=int)
-        
-        # Validate limit
-        if limit < 1 or limit > 1000:
-            return jsonify({'error': 'limit must be between 1 and 1000'}), 400
-        
-        # Get search activities from Cosmos DB
-        result = SearchActivityService.list_search_activities_by_user(user_id, limit=limit)
-        
-        return jsonify(result), 200
-        
-    except Exception as e:
-        return jsonify({'error': f'Failed to list search activities: {str(e)}'}), 500
-
 @search_activity_bp.route('/search-activities/<search_id>', methods=['PATCH'])
 def update_search_activity(search_id):
     """

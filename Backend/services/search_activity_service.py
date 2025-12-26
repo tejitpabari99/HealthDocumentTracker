@@ -239,3 +239,141 @@ class SearchActivityService:
             
         except exceptions.CosmosHttpResponseError as e:
             raise Exception(f"Failed to query search activity by searchId: {str(e)}")
+    
+    @staticmethod
+    def list_all_search_activities(limit: int = 100) -> Dict[str, Any]:
+        """
+        List all search activities across all users (admin function).
+        
+        Args:
+            limit: Maximum number of search activities to return
+            
+        Returns:
+            Dictionary with search activities list and count
+        """
+        try:
+            container = get_search_activity_container()
+            
+            query = """
+                SELECT * FROM c 
+                WHERE c.type = 'search_activity' 
+                ORDER BY c.timestamp DESC
+            """
+            
+            # Execute query
+            query_iterable = container.query_items(
+                query=query,
+                enable_cross_partition_query=True,
+                max_item_count=limit
+            )
+            
+            activities = []
+            for item in query_iterable:
+                activities.append(item)
+                if len(activities) >= limit:
+                    break
+            
+            logger.info(f"Admin listed {len(activities)} search activities across all users")
+            
+            return {
+                "searchActivities": activities,
+                "count": len(activities)
+            }
+            
+        except exceptions.CosmosHttpResponseError as e:
+            logger.error(f"Failed to list all search activities: {str(e)}", exc_info=True)
+            raise Exception(f"Failed to list search activities: {str(e)}")
+    
+    @staticmethod
+    def delete_all_search_activities() -> Dict[str, Any]:
+        """
+        Delete all search activities (admin function).
+        
+        Returns:
+            Dictionary with deletion count and status
+        """
+        try:
+            logger.info("Admin deleting all search activities")
+            container = get_search_activity_container()
+            
+            # Query all search activities
+            query = "SELECT c.id, c.userId FROM c WHERE c.type = 'search_activity'"
+            
+            items = list(container.query_items(
+                query=query,
+                enable_cross_partition_query=True
+            ))
+            
+            deleted_count = 0
+            for item in items:
+                try:
+                    container.delete_item(
+                        item=item['id'],
+                        partition_key=item['userId']
+                    )
+                    deleted_count += 1
+                except Exception as e:
+                    logger.warning(f"Failed to delete search activity {item['id']}: {str(e)}")
+            
+            logger.info(f"Admin deleted {deleted_count} search activities")
+            
+            return {
+                "message": "Search activities deleted successfully",
+                "deletedCount": deleted_count
+            }
+            
+        except exceptions.CosmosHttpResponseError as e:
+            logger.error(f"Failed to delete all search activities: {str(e)}", exc_info=True)
+            raise Exception(f"Failed to delete search activities: {str(e)}")
+    
+    @staticmethod
+    def delete_search_activities_by_user(user_id: str) -> Dict[str, Any]:
+        """
+        Delete all search activities for a specific user (admin function).
+        
+        Args:
+            user_id: The user ID whose search activities to delete
+            
+        Returns:
+            Dictionary with deletion count and status
+        """
+        try:
+            logger.info(f"Admin deleting search activities for user: {user_id}")
+            container = get_search_activity_container()
+            
+            # Query search activities for the user
+            query = """
+                SELECT c.id, c.userId FROM c 
+                WHERE c.userId = @userId 
+                AND c.type = 'search_activity'
+            """
+            parameters = [{"name": "@userId", "value": user_id}]
+            
+            items = list(container.query_items(
+                query=query,
+                parameters=parameters,
+                enable_cross_partition_query=True
+            ))
+            
+            deleted_count = 0
+            for item in items:
+                try:
+                    container.delete_item(
+                        item=item['id'],
+                        partition_key=item['userId']
+                    )
+                    deleted_count += 1
+                except Exception as e:
+                    logger.warning(f"Failed to delete search activity {item['id']}: {str(e)}")
+            
+            logger.info(f"Admin deleted {deleted_count} search activities for user: {user_id}")
+            
+            return {
+                "message": f"Search activities deleted successfully for user {user_id}",
+                "deletedCount": deleted_count,
+                "userId": user_id
+            }
+            
+        except exceptions.CosmosHttpResponseError as e:
+            logger.error(f"Failed to delete search activities for user {user_id}: {str(e)}", exc_info=True)
+            raise Exception(f"Failed to delete search activities: {str(e)}")

@@ -145,33 +145,23 @@ def setup_logging(
     file_handler.setFormatter(FileFormatter())
     root_logger.addHandler(file_handler)
     
-    # Azure Application Insights Handler
+    # Azure Application Insights Handler (via OpenTelemetry)
+    # Note: Telemetry is now handled by OpenTelemetry tracing setup
+    # See Backend/utils/tracing.py for Azure Monitor integration
     if enable_app_insights:
-        try:
-            from opencensus.ext.azure.log_exporter import AzureLogHandler
-            
-            connection_string = os.getenv('APPLICATIONINSIGHTS_CONNECTION_STRING')
-            if connection_string:
-                azure_handler = AzureLogHandler(connection_string=connection_string)
-                azure_handler.setLevel(logging.INFO)  # Send INFO and above to Azure
-                root_logger.addHandler(azure_handler)
-                
-                root_logger.info(
-                    "Azure Application Insights logging enabled",
-                    extra={
-                        'custom_dimensions': {
-                            'log_file': str(log_filepath),
-                            'environment': os.getenv('ENVIRONMENT', 'development')
-                        }
+        connection_string = os.getenv('APPLICATIONINSIGHTS_CONNECTION_STRING')
+        if connection_string:
+            root_logger.info(
+                "Azure Application Insights configured via OpenTelemetry",
+                extra={
+                    'custom_dimensions': {
+                        'log_file': str(log_filepath),
+                        'environment': os.getenv('ENVIRONMENT', 'development')
                     }
-                )
-        except ImportError:
-            root_logger.warning(
-                "Azure Application Insights packages not installed. "
-                "Install with: pip install opencensus-ext-azure opencensus-ext-flask"
+                }
             )
-        except Exception as e:
-            root_logger.error(f"Failed to initialize Azure Application Insights: {str(e)}")
+        else:
+            root_logger.info("Azure Application Insights connection string not found")
     
     # Log the logging configuration
     root_logger.info(

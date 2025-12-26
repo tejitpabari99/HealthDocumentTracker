@@ -3,6 +3,7 @@ import { View, Text, ScrollView, TextInput, TouchableOpacity, Linking, Alert } f
 import { ThemedView, ThemedText } from '@/components/ui';
 import { styles } from './styles';
 import { searchDocuments } from '@/config/api';
+import { SearchResponse } from '@/types';
 
 interface Reference {
   name: string;
@@ -28,25 +29,18 @@ export function Home() {
     
     try {
       // Call the backend search API
-      const response = await searchDocuments(searchQuery);
+      const response: SearchResponse = await searchDocuments(searchQuery);
       
-      // Parse the response
-      // Backend returns: { message, query, refined_query }
-      // The message contains the answer text and document reference
-      const message = response.message || 'No results found.';
-      
-      // Extract document link if present (format: **Document Reference: URL**)
-      const linkMatch = message.match(/\*\*Document Reference:\s*(https?:\/\/[^\*]+)\*\*/);
-      const documentLink = linkMatch ? linkMatch[1].trim() : null;
-      
-      // Remove the document reference from the answer text
-      const answerText = message.replace(/\n\n\*\*Document Reference:.*\*\*/, '');
+      // Backend now returns: { message, sas_url, query, refined_query, searchId, etc. }
+      // The sas_url is the direct reference to the document
+      const answerText = response.message || 'No results found.';
+      const sasUrl = response.sas_url;
       
       // Format the result
       const result: SearchResult = {
         answer: answerText,
-        references: documentLink 
-          ? [{ name: 'View Document', link: documentLink }]
+        references: sasUrl 
+          ? [{ name: 'View Document', link: sasUrl }]
           : []
       };
       

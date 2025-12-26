@@ -25,10 +25,19 @@ from Backend.config import (
     AZURE_STORAGE_CONTAINER_NAME_RAW
 )
 from Backend.models.document import Document, DocumentCreate, DocumentUpdate
-from Backend.utils.ocr_utils import extract_text_with_ocr
+from Backend.utils.ocr_utils import (
+    extract_text_with_ocr,
+    OCRError,
+    UnsupportedFileTypeError,
+    FileSizeTooLargeError,
+    OCRExtractionError
+)
 from Backend.utils.logger import get_logger
 
 logger = get_logger(__name__)
+
+# Import SearchService for SAS URL generation
+from Backend.services.search_service import SearchService
 
 class DocumentService:
     """Service class for Document operations in Cosmos DB."""
@@ -156,12 +165,13 @@ class DocumentService:
             raise Exception(f"Failed to create document: {str(e)}")
     
     @staticmethod
-    def get_document(document_id: str) -> Optional[Dict[str, Any]]:
+    def get_document(document_id: str, include_sas_url: bool = True) -> Optional[Dict[str, Any]]:
         """
         Retrieve a document by ID.
         
         Args:
             document_id: The document ID to retrieve
+            include_sas_url: Whether to generate and include SAS URL (default: True)
             
         Returns:
             Document as dictionary or None if not found
@@ -179,13 +189,23 @@ class DocumentService:
                 enable_cross_partition_query=True
             ))
             
+            if items and include_sas_url:
+                document = items[0]
+                # Generate SAS URL for the document
+                blob_uri = document.get('blobUri', '')
+                blob_container = document.get('blobContainer', AZURE_STORAGE_CONTAINER_NAME_RAW)
+                if blob_uri:
+                    sas_url = SearchService.generate_sas_url(blob_uri, blob_container)
+                    document['sasUrl'] = sas_url
+                return document
+            
             return items[0] if items else None
             
         except exceptions.CosmosHttpResponseError as e:
             raise Exception(f"Failed to retrieve document: {str(e)}")
     
     @staticmethod
-    def list_documents_by_user(user_id: str, limit: int = 100, status: str = "active") -> Dict[str, Any]:
+    def list_documents_by_user(user_id: str, limit: int = 100, status: str = "active", include_sas_urls: bool = True) -> Dict[str, Any]:
         """
         List all documents for a specific user.
         
@@ -193,6 +213,7 @@ class DocumentService:
             user_id: The user ID to filter by
             limit: Maximum number of documents to return
             status: Filter by status (default: "active")
+            include_sas_urls: Whether to generate SAS URLs for all documents (default: True)
             
         Returns:
             Dictionary with documents list and count
@@ -222,6 +243,14 @@ class DocumentService:
             
             documents = []
             for item in query_iterable:
+                # Generate SAS URL for each document if requested
+                if include_sas_urls:
+                    blob_uri = item.get('blobUri', '')
+                    blob_container = item.get('blobContainer', AZURE_STORAGE_CONTAINER_NAME_RAW)
+                    if blob_uri:
+                        sas_url = SearchService.generate_sas_url(blob_uri, blob_container)
+                        item['sasUrl'] = sas_url
+                
                 documents.append(item)
                 if len(documents) >= limit:
                     break
@@ -388,11 +417,14 @@ class DocumentService:
         except Exception:
             pass  # Container already exists
         
-        # Upload file to blob storage
-        logger.debug(f"Uploading to blob storage: {unique_filename}")
+        # Create user-specific blob path (virtual directory structure)
+        blob_path = f"{user_id}/{unique_filename}"
+        
+        # Upload file to blob storage with user-specific path
+        logger.debug(f"Uploading to blob storage: {blob_path}")
         blob_client = blob_service_client.get_blob_client(
             container=AZURE_STORAGE_CONTAINER_NAME_RAW,
-            blob=unique_filename
+            blob=blob_path
         )
         
         file_stream = io.BytesIO(file_content)
@@ -413,7 +445,7 @@ class DocumentService:
                 sas_token = generate_blob_sas(
                     account_name=blob_service_client.account_name,
                     container_name=AZURE_STORAGE_CONTAINER_NAME_RAW,
-                    blob_name=unique_filename,
+                    blob_name=blob_path,
                     account_key=blob_service_client.credential.account_key,
                     permission=BlobSasPermissions(read=True),
                     expiry=datetime.utcnow() + timedelta(hours=1)
@@ -425,14 +457,31 @@ class DocumentService:
         
         # Extract text using OCR
         logger.info(f"Starting OCR extraction, method: {'blob_url' if use_blob_url else 'direct_content'}")
-        pages_data = extract_text_with_ocr(
-            file_content,
-            content_type,
-            original_filename,
-            blob_url_with_sas if use_blob_url else None
-        )
-        
-        # Handle OCR failure
+        pages_data = None
+        try:
+            pages_data = extract_text_with_ocr(
+                file_content,
+                content_type,
+                original_filename,
+                blob_url_with_sas if use_blob_url else None
+            )
+        except (UnsupportedFileTypeError, FileSizeTooLargeError, OCRExtractionError, OCRError) as e:
+            # OCR error occurred - clean up blob and return user-friendly error
+            error_type = type(e).__name__
+            logger.error(f"{error_type}: {str(e)}", extra={
+                'custom_dimensions': {
+                    'filename': original_filename, 
+                    'user_id': user_id,
+                    'error_type': error_type
+                }
+            })
+            try:
+                blob_client.delete_blob()
+            except Exception as delete_error:
+                print(f"Warning: Failed to delete blob after OCR error: {str(delete_error)}")
+            raise Exception(str(e))
+
+        # Handle empty OCR result (shouldn't happen now with exceptions, but keep as safety net)
         if not pages_data:
             logger.error("OCR extraction failed - no pages extracted", extra={
                 'custom_dimensions': {'filename': original_filename, 'user_id': user_id}
@@ -441,8 +490,7 @@ class DocumentService:
                 blob_client.delete_blob()
             except Exception as delete_error:
                 print(f"Warning: Failed to delete blob after OCR failure: {str(delete_error)}")
-            
-            raise Exception("OCR extraction failed - no text could be extracted from the document")
+            raise Exception(f"No text could be extracted from '{original_filename}'. The file may be empty or corrupted.")
         
         # Generate report ID and document ID for this upload
         report_id = str(uuid.uuid4())
@@ -519,7 +567,7 @@ class DocumentService:
                 contentType=content_type,
                 fileSize=len(file_content),
                 blobUri=blob_url,
-                blobName=unique_filename,
+                blobName=blob_path,
                 blobContainer=AZURE_STORAGE_CONTAINER_NAME_RAW,
                 searchDocumentIds=search_document_ids,
                 totalPages=uploaded_pages
@@ -541,8 +589,9 @@ class DocumentService:
                 'custom_dimensions': {'user_id': user_id, 'report_id': report_id}
             }, exc_info=True)
         
-        return {
-            'blob_name': unique_filename,
+        # Prepare response with compression stats
+        response = {
+            'blob_name': blob_path,
             'original_filename': original_filename,
             'blob_url': blob_url,
             'report_id': report_id,
@@ -553,6 +602,8 @@ class DocumentService:
             'document_id': cosmos_doc_id,
             'file_size_mb': round(file_size_mb, 2)
         }
+        
+        return response
     
     @staticmethod
     def delete_document_full_process(document_id: str) -> Dict[str, Any]:
@@ -657,3 +708,210 @@ class DocumentService:
             'errors': errors,
             'success': cosmos_deleted and blob_deleted and (not search_ids or search_deleted_count > 0)
         }
+    
+    @staticmethod
+    def list_all_documents(limit: int = 100, status: str = "active", include_sas_urls: bool = False) -> Dict[str, Any]:
+        """
+        List all documents across all users (admin function).
+        
+        Args:
+            limit: Maximum number of documents to return
+            status: Filter by status (default: "active")
+            include_sas_urls: Whether to generate SAS URLs for all documents (default: False for performance)
+            
+        Returns:
+            Dictionary with documents list and count
+        """
+        try:
+            container = get_documents_container()
+            
+            query = """
+                SELECT * FROM c 
+                WHERE c.type = 'document' 
+                AND c.status = @status 
+                ORDER BY c.uploadedAt DESC
+            """
+            parameters = [
+                {"name": "@status", "value": status}
+            ]
+            
+            # Execute query
+            query_iterable = container.query_items(
+                query=query,
+                parameters=parameters,
+                enable_cross_partition_query=True,
+                max_item_count=limit
+            )
+            
+            documents = []
+            for item in query_iterable:
+                # Generate SAS URL for each document if requested
+                if include_sas_urls:
+                    blob_uri = item.get('blobUri', '')
+                    blob_container = item.get('blobContainer', AZURE_STORAGE_CONTAINER_NAME_RAW)
+                    if blob_uri:
+                        sas_url = SearchService.generate_sas_url(blob_uri, blob_container)
+                        item['sasUrl'] = sas_url
+                
+                documents.append(item)
+                if len(documents) >= limit:
+                    break
+            
+            logger.info(f"Admin listed {len(documents)} documents across all users")
+            
+            return {
+                "documents": documents,
+                "count": len(documents)
+            }
+            
+        except exceptions.CosmosHttpResponseError as e:
+            logger.error(f"Failed to list all documents: {str(e)}", exc_info=True)
+            raise Exception(f"Failed to list documents: {str(e)}")
+    
+    @staticmethod
+    def delete_all_documents_by_user(user_id: str) -> Dict[str, Any]:
+        """
+        Delete all documents for a specific user from all Azure services (admin function).
+        
+        Args:
+            user_id: The user ID whose documents should be deleted
+            
+        Returns:
+            Dictionary with deletion results
+        """
+        logger.info(f"Starting deletion of all documents for user: {user_id}")
+        
+        try:
+            # Get all documents for the user
+            result = DocumentService.list_documents_by_user(user_id, limit=1000, status="active", include_sas_urls=False)
+            documents = result.get('documents', [])
+            
+            if not documents:
+                logger.info(f"No documents found for user: {user_id}")
+                return {
+                    'success': True,
+                    'userId': user_id,
+                    'documents_deleted': 0,
+                    'cosmos_deleted': 0,
+                    'blobs_deleted': 0,
+                    'search_entries_deleted': 0,
+                    'errors': []
+                }
+            
+            # Track deletion results
+            total_documents = len(documents)
+            cosmos_deleted_count = 0
+            blobs_deleted_count = 0
+            search_entries_deleted_count = 0
+            errors = []
+            
+            # Delete each document
+            for document in documents:
+                document_id = document.get('id')
+                try:
+                    delete_result = DocumentService.delete_document_full_process(document_id)
+                    
+                    if delete_result['cosmos_deleted']:
+                        cosmos_deleted_count += 1
+                    if delete_result['blob_deleted']:
+                        blobs_deleted_count += 1
+                    search_entries_deleted_count += delete_result['search_deleted_count']
+                    
+                    if delete_result['errors']:
+                        errors.extend([f"Document {document_id}: {err}" for err in delete_result['errors']])
+                        
+                except Exception as e:
+                    error_msg = f"Failed to delete document {document_id}: {str(e)}"
+                    logger.error(error_msg)
+                    errors.append(error_msg)
+            
+            success = (cosmos_deleted_count == total_documents and 
+                      blobs_deleted_count == total_documents)
+            
+            logger.info(f"Completed deletion for user {user_id}: {cosmos_deleted_count}/{total_documents} documents deleted")
+            
+            return {
+                'success': success,
+                'userId': user_id,
+                'documents_deleted': total_documents,
+                'cosmos_deleted': cosmos_deleted_count,
+                'blobs_deleted': blobs_deleted_count,
+                'search_entries_deleted': search_entries_deleted_count,
+                'errors': errors
+            }
+            
+        except Exception as e:
+            logger.error(f"Failed to delete documents for user {user_id}: {str(e)}", exc_info=True)
+            raise Exception(f"Failed to delete documents: {str(e)}")
+    
+    @staticmethod
+    def delete_all_documents() -> Dict[str, Any]:
+        """
+        Delete ALL documents across all users from all Azure services (admin function).
+        WARNING: This deletes everything!
+        
+        Returns:
+            Dictionary with deletion results
+        """
+        logger.warning("Starting deletion of ALL documents across ALL users")
+        
+        try:
+            # Get all documents across all users
+            result = DocumentService.list_all_documents(limit=1000, status="active", include_sas_urls=False)
+            documents = result.get('documents', [])
+            
+            if not documents:
+                logger.info("No documents found to delete")
+                return {
+                    'success': True,
+                    'documents_deleted': 0,
+                    'cosmos_deleted': 0,
+                    'blobs_deleted': 0,
+                    'search_entries_deleted': 0,
+                    'errors': []
+                }
+            
+            # Track deletion results
+            total_documents = len(documents)
+            cosmos_deleted_count = 0
+            blobs_deleted_count = 0
+            search_entries_deleted_count = 0
+            errors = []
+            
+            # Delete each document
+            for document in documents:
+                document_id = document.get('id')
+                try:
+                    delete_result = DocumentService.delete_document_full_process(document_id)
+                    
+                    if delete_result['cosmos_deleted']:
+                        cosmos_deleted_count += 1
+                    if delete_result['blob_deleted']:
+                        blobs_deleted_count += 1
+                    search_entries_deleted_count += delete_result['search_deleted_count']
+                    
+                    if delete_result['errors']:
+                        errors.extend([f"Document {document_id}: {err}" for err in delete_result['errors']])
+                        
+                except Exception as e:
+                    error_msg = f"Failed to delete document {document_id}: {str(e)}"
+                    logger.error(error_msg)
+                    errors.append(error_msg)
+            
+            success = (cosmos_deleted_count == total_documents and 
+                      blobs_deleted_count == total_documents)
+            
+            logger.warning(f"Completed deletion of all documents: {cosmos_deleted_count}/{total_documents} documents deleted")
+            
+            return {
+                'success': success,
+                'documents_deleted': total_documents,
+                'cosmos_deleted': cosmos_deleted_count,
+                'blobs_deleted': blobs_deleted_count,
+                'search_entries_deleted': search_entries_deleted_count,
+                'errors': errors
+            }
+            
+        except Exception as e:
+            logger.error(f"Failed to delete all documents: {str(e)}", exc_info=True)
+            raise Exception(f"Failed to delete documents: {str(e)}")
