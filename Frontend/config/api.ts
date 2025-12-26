@@ -3,9 +3,9 @@
  * Centralized configuration for backend API endpoints
  */
 
-// Default to localhost for development
-// Change this to your deployed backend URL when ready
-const API_HOST = 'http://localhost:5000';
+// Read API host from environment variable
+// Falls back to localhost for development if not set
+const API_HOST = process.env.EXPO_PUBLIC_API_URL || 'http://localhost:5000';
 
 // Hardcoded user credentials for testing
 export const TEST_USER = {
