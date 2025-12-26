@@ -297,7 +297,6 @@ HealthDocumentTracker/
 | Variable | Description | Required | Default |
 |----------|-------------|----------|---------|
 | `AZURE_STORAGE_CONNECTION_STRING` | Azure Storage account connection string | Yes | - |
-| `AZURE_STORAGE_CONTAINER_NAME` | Blob container name for metadata | No | `health-documents` |
 | `AZURE_STORAGE_CONTAINER_NAME_RAW` | Blob container name for raw documents | No | `health-documents-raw` |
 | `AZURE_VISION_ENDPOINT` | Azure Computer Vision endpoint URL | Yes (for OCR) | - |
 | `AZURE_VISION_KEY` | Azure Computer Vision API key | Yes (for OCR) | - |
