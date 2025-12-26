@@ -15,7 +15,7 @@ import logging
 import time
 import uuid
 import json
-from flask import request, g
+from flask import request, g, jsonify
 from functools import wraps
 from typing import Optional, Dict, Any, List
 from werkzeug.datastructures import FileStorage
