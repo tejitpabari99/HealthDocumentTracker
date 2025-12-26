@@ -6,6 +6,7 @@ import {
   Alert,
   Image,
   StatusBar,
+  ActivityIndicator,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { ThemedView, ThemedText } from '@/components/ui';
@@ -13,6 +14,7 @@ import { Ionicons } from '@expo/vector-icons';
 import * as DocumentPicker from 'expo-document-picker';
 import * as ImagePicker from 'expo-image-picker';
 import { styles } from './styles';
+import { uploadDocument } from '@/config/api';
 
 interface UploadPageProps {
   onSubmit: (files: { uri: string; name: string; type: string }[]) => void;
@@ -24,6 +26,7 @@ export function UploadPage({ onSubmit, onBack }: UploadPageProps) {
   const [selectedFiles, setSelectedFiles] = useState<
     { uri: string; name: string; type: string }[]
   >([]);
+  const [isUploading, setIsUploading] = useState(false);
 
   const pickImage = async () => {
     const permissionResult = await ImagePicker.requestMediaLibraryPermissionsAsync();
@@ -35,7 +38,7 @@ export function UploadPage({ onSubmit, onBack }: UploadPageProps) {
 
     const result = await ImagePicker.launchImageLibraryAsync({
       mediaTypes: ['images'],
-      allowsMultipleSelection: true,
+      allowsMultipleSelection: true, // Allow multiple files
       quality: 1,
     });
 
@@ -45,7 +48,7 @@ export function UploadPage({ onSubmit, onBack }: UploadPageProps) {
         name: asset.uri.split('/').pop() || 'image.jpg',
         type: 'image',
       }));
-      setSelectedFiles((prev) => [...prev, ...newFiles]);
+      setSelectedFiles((prev) => [...prev, ...newFiles]); // Append to existing files
     }
   };
 
@@ -53,7 +56,7 @@ export function UploadPage({ onSubmit, onBack }: UploadPageProps) {
     try {
       const result = await DocumentPicker.getDocumentAsync({
         type: ['application/pdf', 'image/*'],
-        multiple: true,
+        multiple: true, // Allow multiple files
         copyToCacheDirectory: true,
       });
 
@@ -63,7 +66,7 @@ export function UploadPage({ onSubmit, onBack }: UploadPageProps) {
           name: asset.name,
           type: asset.mimeType?.startsWith('image/') ? 'image' : 'pdf',
         }));
-        setSelectedFiles((prev) => [...prev, ...newFiles]);
+        setSelectedFiles((prev) => [...prev, ...newFiles]); // Append to existing files
       }
     } catch (err) {
       Alert.alert('Error', 'Failed to pick document');
@@ -74,14 +77,75 @@ export function UploadPage({ onSubmit, onBack }: UploadPageProps) {
     setSelectedFiles((prev) => prev.filter((_, i) => i !== index));
   };
 
-  const handleSubmit = () => {
+  const handleSubmit = async () => {
     if (selectedFiles.length === 0) {
       Alert.alert('No Files', 'Please select at least one file to upload');
       return;
     }
 
-    onSubmit(selectedFiles);
-    setSelectedFiles([]);
+    setIsUploading(true);
+    
+    const totalFiles = selectedFiles.length;
+    let successCount = 0;
+    let failCount = 0;
+    const errors: string[] = [];
+
+    try {
+      // Upload files one at a time
+      for (let i = 0; i < selectedFiles.length; i++) {
+        const file = selectedFiles[i];
+        
+        try {
+          const response = await uploadDocument(file);
+          successCount++;
+          console.log(`Uploaded ${i + 1}/${totalFiles}: ${response.original_filename}`);
+        } catch (error: any) {
+          failCount++;
+          errors.push(`${file.name}: ${error.message || 'Upload failed'}`);
+          console.error(`Failed to upload ${file.name}:`, error);
+        }
+      }
+
+      // Navigate back immediately after successful uploads
+      if (successCount === totalFiles) {
+        setSelectedFiles([]);
+        onSubmit(selectedFiles);
+        onBack(); // Navigate back to documents screen immediately
+        
+        // Show success message after navigation
+        setTimeout(() => {
+          Alert.alert(
+            'Upload Complete',
+            `Successfully uploaded all ${successCount} file${successCount !== 1 ? 's' : ''}!`
+          );
+        }, 100);
+      } else if (successCount > 0) {
+        setSelectedFiles([]);
+        onSubmit(selectedFiles);
+        onBack(); // Navigate back to documents screen immediately
+        
+        // Show partial success message after navigation
+        setTimeout(() => {
+          Alert.alert(
+            'Upload Partially Complete',
+            `Uploaded: ${successCount}/${totalFiles} files\n\nFailed uploads:\n${errors.join('\n')}`
+          );
+        }, 100);
+      } else {
+        Alert.alert(
+          'Upload Failed',
+          `All uploads failed:\n${errors.join('\n')}`
+        );
+      }
+    } catch (error: any) {
+      console.error('Upload process failed:', error);
+      Alert.alert(
+        'Upload Failed',
+        error.message || 'Failed to upload documents. Please check your connection and try again.'
+      );
+    } finally {
+      setIsUploading(false);
+    }
   };
 
   return (
@@ -104,6 +168,9 @@ export function UploadPage({ onSubmit, onBack }: UploadPageProps) {
         <ThemedView style={styles.uploadSection}>
           <ThemedText type="subtitle" style={styles.sectionTitle}>
             Select Files
+          </ThemedText>
+          <ThemedText style={styles.helperText}>
+            You can select multiple files. Each will be uploaded separately.
           </ThemedText>
           
           <TouchableOpacity style={styles.uploadButton} onPress={pickImage}>
@@ -158,10 +225,23 @@ export function UploadPage({ onSubmit, onBack }: UploadPageProps) {
         )}
 
         {selectedFiles.length > 0 && (
-          <TouchableOpacity style={styles.submitButton} onPress={handleSubmit}>
-            <ThemedText style={styles.submitButtonText}>
-              Upload {selectedFiles.length} File{selectedFiles.length !== 1 ? 's' : ''}
-            </ThemedText>
+          <TouchableOpacity 
+            style={[styles.submitButton, isUploading && styles.submitButtonDisabled]} 
+            onPress={handleSubmit}
+            disabled={isUploading}
+          >
+            {isUploading ? (
+              <View style={styles.uploadingContainer}>
+                <ActivityIndicator color="#ffffff" size="small" />
+                <ThemedText style={[styles.submitButtonText, { marginLeft: 8 }]}>
+                  Uploading {selectedFiles.length} file{selectedFiles.length !== 1 ? 's' : ''}...
+                </ThemedText>
+              </View>
+            ) : (
+              <ThemedText style={styles.submitButtonText}>
+                Upload {selectedFiles.length} File{selectedFiles.length !== 1 ? 's' : ''}
+              </ThemedText>
+            )}
           </TouchableOpacity>
         )}
       </ScrollView>

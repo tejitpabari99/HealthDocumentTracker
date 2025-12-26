@@ -48,6 +48,12 @@ export const styles = StyleSheet.create({
     fontWeight: '600',
     marginBottom: 16,
   },
+  helperText: {
+    fontSize: 14,
+    color: '#666',
+    marginBottom: 16,
+    lineHeight: 20,
+  },
   uploadButton: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -122,9 +128,18 @@ export const styles = StyleSheet.create({
     padding: 16,
     alignItems: 'center',
   },
+  submitButtonDisabled: {
+    backgroundColor: '#a0c4ff',
+    opacity: 0.7,
+  },
   submitButtonText: {
     color: '#fff',
     fontSize: 16,
     fontWeight: '600',
+  },
+  uploadingContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
   },
 });
