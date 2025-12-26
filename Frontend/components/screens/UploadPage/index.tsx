@@ -15,6 +15,7 @@ import * as DocumentPicker from 'expo-document-picker';
 import * as ImagePicker from 'expo-image-picker';
 import { styles } from './styles';
 import { uploadDocument } from '@/config/api';
+import { useDocumentCache } from '@/context/DocumentCacheContext';
 
 interface UploadPageProps {
   onSubmit: (files: { uri: string; name: string; type: string }[]) => void;
@@ -23,6 +24,7 @@ interface UploadPageProps {
 
 export function UploadPage({ onSubmit, onBack }: UploadPageProps) {
   const insets = useSafeAreaInsets();
+  const { addDocument } = useDocumentCache();
   const [selectedFiles, setSelectedFiles] = useState<
     { uri: string; name: string; type: string }[]
   >([]);
@@ -97,6 +99,10 @@ export function UploadPage({ onSubmit, onBack }: UploadPageProps) {
         
         try {
           const response = await uploadDocument(file);
+          // Add uploaded document to cache immediately
+          if (response.document) {
+            addDocument(response.document);
+          }
           successCount++;
           console.log(`Uploaded ${i + 1}/${totalFiles}: ${response.original_filename}`);
         } catch (error: any) {

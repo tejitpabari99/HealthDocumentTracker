@@ -7,6 +7,12 @@
 // Change this to your deployed backend URL when ready
 const API_HOST = 'http://localhost:5000';
 
+// Hardcoded user credentials for testing
+export const TEST_USER = {
+  id: 'user-194b85f1-faab-4c3b-8c19-d2e8ad8d5459',
+  email: 'testuser@test.com',
+};
+
 /**
  * Get the current API host
  * You can modify this function to read from environment variables or async storage
@@ -31,8 +37,17 @@ export const API_ENDPOINTS = {
   // Upload endpoint - POST /documents
   UPLOAD_DOCUMENT: `${API_HOST}/documents`,
   
-  // Search endpoint - POST /documents/search
-  SEARCH_DOCUMENTS: `${API_HOST}/documents/search`,
+  // List documents endpoint - GET /documents
+  LIST_DOCUMENTS: `${API_HOST}/documents`,
+  
+  // Get document endpoint - GET /documents/:id
+  GET_DOCUMENT: (id: string) => `${API_HOST}/documents/${id}`,
+  
+  // Delete document endpoint - DELETE /documents/:id
+  DELETE_DOCUMENT: (id: string) => `${API_HOST}/documents/${id}`,
+  
+  // Search endpoint - POST /search
+  SEARCH_DOCUMENTS: `${API_HOST}/search`,
   
   // Health check - GET /health
   HEALTH_CHECK: `${API_HOST}/health`,
@@ -41,6 +56,15 @@ export const API_ENDPOINTS = {
 /**
  * API Helper Functions
  */
+
+/**
+ * Get authentication headers with X-User-Id
+ */
+const getAuthHeaders = () => {
+  return {
+    'X-User-Id': TEST_USER.id,
+  };
+};
 
 /**
  * Upload a single document to the backend
@@ -53,8 +77,6 @@ export const uploadDocument = async (file: {
   type: string;
 }): Promise<any> => {
   try {
-    const formData = new FormData();
-    
     // Determine the MIME type based on file extension
     let mimeType = 'application/octet-stream';
     const fileName = file.name.toLowerCase();
@@ -84,13 +106,28 @@ export const uploadDocument = async (file: {
       }
     }
     
+    // Create FormData and handle platform-specific file preparation
+    const formData = new FormData();
+    
     // Check if running on web (blob: URL) or native (file:// or content://)
     if (file.uri.startsWith('blob:') || file.uri.startsWith('http')) {
-      // Web platform - fetch the blob and convert to File
-      const response = await fetch(file.uri);
-      const blob = await response.blob();
-      const webFile = new File([blob], finalFileName, { type: mimeType });
-      formData.append('file', webFile);
+      // Web platform - fetch the blob immediately and convert to File
+      try {
+        const blobResponse = await fetch(file.uri);
+        if (!blobResponse.ok) {
+          throw new Error(`Failed to fetch blob: ${blobResponse.statusText}`);
+        }
+        const blob = await blobResponse.blob();
+        
+        // Create a proper File object with the correct MIME type
+        const webFile = new File([blob], finalFileName, { type: mimeType });
+        formData.append('file', webFile);
+        
+        console.log('Web file prepared:', { name: finalFileName, type: mimeType, size: blob.size });
+      } catch (blobError: any) {
+        console.error('Failed to process blob URL:', blobError);
+        throw new Error(`Failed to read file: ${blobError.message}. The file may have been moved or deleted.`);
+      }
     } else {
       // React Native platform - use the standard format
       const fileToUpload: any = {
@@ -99,11 +136,13 @@ export const uploadDocument = async (file: {
         type: mimeType,
       };
       formData.append('file', fileToUpload);
+      console.log('Native file prepared:', { name: finalFileName, type: mimeType });
     }
     
     // Don't set Content-Type header - let the browser/fetch set it automatically with boundary
     const response = await fetch(API_ENDPOINTS.UPLOAD_DOCUMENT, {
       method: 'POST',
+      headers: getAuthHeaders(),
       body: formData,
     });
     
@@ -139,6 +178,81 @@ export const uploadDocument = async (file: {
 };
 
 /**
+ * List all documents for the authenticated user
+ * @returns Promise with list of documents
+ */
+export const listDocuments = async (): Promise<any> => {
+  try {
+    const response = await fetch(API_ENDPOINTS.LIST_DOCUMENTS, {
+      method: 'GET',
+      headers: getAuthHeaders(),
+    });
+    
+    const data = await response.json();
+    
+    if (!response.ok) {
+      throw new Error(data.error || `Failed to list documents with status ${response.status}`);
+    }
+    
+    return data;
+  } catch (error) {
+    console.error('List documents error:', error);
+    throw error;
+  }
+};
+
+/**
+ * Get a single document by ID
+ * @param documentId - The document ID
+ * @returns Promise with document details
+ */
+export const getDocument = async (documentId: string): Promise<any> => {
+  try {
+    const response = await fetch(API_ENDPOINTS.GET_DOCUMENT(documentId), {
+      method: 'GET',
+      headers: getAuthHeaders(),
+    });
+    
+    const data = await response.json();
+    
+    if (!response.ok) {
+      throw new Error(data.error || `Failed to get document with status ${response.status}`);
+    }
+    
+    return data;
+  } catch (error) {
+    console.error('Get document error:', error);
+    throw error;
+  }
+};
+
+/**
+ * Delete a document
+ * @param documentId - The document ID to delete
+ * @returns Promise with deletion result
+ */
+export const deleteDocument = async (documentId: string): Promise<any> => {
+  try {
+    const response = await fetch(API_ENDPOINTS.DELETE_DOCUMENT(documentId), {
+      method: 'DELETE',
+      headers: getAuthHeaders(),
+    });
+    
+    const data = await response.json();
+    
+    if (!response.ok) {
+      throw new Error(data.error || `Failed to delete document with status ${response.status}`);
+    }
+    
+    return data;
+  } catch (error) {
+    console.error('Delete document error:', error);
+    throw error;
+  }
+};
+
+
+/**
  * Search documents with a query
  * @param query - Search query string
  * @returns Promise with search response
@@ -149,6 +263,7 @@ export const searchDocuments = async (query: string): Promise<any> => {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
+        ...getAuthHeaders(),
       },
       body: JSON.stringify({ query }),
     });
