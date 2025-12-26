@@ -13,7 +13,6 @@ load_dotenv()
 
 # Azure Blob Storage configuration
 AZURE_STORAGE_CONNECTION_STRING = os.getenv('AZURE_STORAGE_CONNECTION_STRING')
-AZURE_STORAGE_CONTAINER_NAME = os.getenv('AZURE_STORAGE_CONTAINER_NAME', 'health-documents')
 AZURE_STORAGE_CONTAINER_NAME_RAW = os.getenv('AZURE_STORAGE_CONTAINER_NAME_RAW', 'health-documents-raw')
 
 # Azure AI Search configuration
