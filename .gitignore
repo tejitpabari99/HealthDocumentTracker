@@ -48,3 +48,6 @@ instance/
 .pytest_cache/
 .coverage
 htmlcov/
+
+# Logs
+*/logs/*
