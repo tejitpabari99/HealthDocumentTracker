@@ -95,4 +95,10 @@ export const styles = StyleSheet.create({
     color: '#007AFF',
     textDecorationLine: 'underline',
   },
+  loadingText: {
+    fontSize: 16,
+    textAlign: 'center',
+    padding: 20,
+    color: '#666',
+  },
 });

@@ -1,37 +1,9 @@
 import React, { useState } from 'react';
-import { View, Text, ScrollView, TextInput, TouchableOpacity, Linking } from 'react-native';
+import { View, Text, ScrollView, TextInput, TouchableOpacity, Linking, Alert } from 'react-native';
 import { ThemedView, ThemedText } from '@/components/ui';
 import { styles } from './styles';
-
-// Mock data for API response
-const getMockData = () => {
-  const mockResponses = [
-    {
-      answer: "Based on your health records, your **blood pressure** has been consistently normal.\nKey findings:\n- Average BP: 120/80 mmHg\n- No significant variations detected\n- Continue regular monitoring",
-      references: [
-        { name: "Blood Pressure Report - Jan 2024", link: "https://example.com/bp-jan-2024" },
-        { name: "Annual Health Checkup 2024", link: "https://example.com/checkup-2024" },
-        { name: "Cardiology Consultation Notes", link: "https://example.com/cardio-notes" }
-      ]
-    },
-    {
-      answer: "Your recent **lab results** show normal values across all parameters.\n**Summary:**\n- Hemoglobin: 14.5 g/dL (Normal)\n- Blood Sugar: 95 mg/dL (Normal)\n- Cholesterol: 180 mg/dL (Healthy range)\nNo immediate concerns identified.",
-      references: [
-        { name: "Complete Blood Count Report", link: "https://example.com/cbc-report" },
-        { name: "Lipid Profile Test", link: "https://example.com/lipid-profile" }
-      ]
-    },
-    {
-      answer: "Your **vaccination records** are up to date.\nCompleted vaccinations:\n- COVID-19: Booster dose (Dec 2023)\n- Influenza: Annual shot (Oct 2023)\n- Tetanus: Last dose 2020\n*Next recommended: Influenza vaccine in Oct 2024*",
-      references: [
-        { name: "Vaccination Certificate - COVID-19", link: "https://example.com/covid-vaccine" },
-        { name: "Immunization History", link: "https://example.com/immunization" }
-      ]
-    }
-  ];
-  
-  return mockResponses[Math.floor(Math.random() * mockResponses.length)];
-};
+import { searchDocuments } from '@/config/api';
+import { SearchResponse } from '@/types';
 
 interface Reference {
   name: string;
@@ -48,19 +20,41 @@ export function Home() {
   const [searchResult, setSearchResult] = useState<SearchResult | null>(null);
   const [isLoading, setIsLoading] = useState(false);
 
-  const handleSearch = () => {
+  const handleSearch = async () => {
     if (!searchQuery.trim()) {
       return;
     }
 
     setIsLoading(true);
     
-    // Simulate API call delay
-    setTimeout(() => {
-      const mockData = getMockData();
-      setSearchResult(mockData);
+    try {
+      // Call the backend search API
+      const response: SearchResponse = await searchDocuments(searchQuery);
+      
+      // Backend now returns: { message, sas_url, query, refined_query, searchId, etc. }
+      // The sas_url is the direct reference to the document
+      const answerText = response.message || 'No results found.';
+      const sasUrl = response.sas_url;
+      
+      // Format the result
+      const result: SearchResult = {
+        answer: answerText,
+        references: sasUrl 
+          ? [{ name: 'View Document', link: sasUrl }]
+          : []
+      };
+      
+      setSearchResult(result);
+    } catch (error: any) {
+      console.error('Search failed:', error);
+      Alert.alert(
+        'Search Failed',
+        error.message || 'Failed to search documents. Please check your connection and try again.'
+      );
+      setSearchResult(null);
+    } finally {
       setIsLoading(false);
-    }, 500);
+    }
   };
 
   const handleLinkPress = (url: string) => {
@@ -112,7 +106,13 @@ export function Home() {
         returnKeyType="search"
       />
 
-      {searchResult && (
+      {isLoading && (
+        <ThemedView style={styles.resultContainer}>
+          <ThemedText style={styles.loadingText}>Searching...</ThemedText>
+        </ThemedView>
+      )}
+
+      {!isLoading && searchResult && (
         <ThemedView style={styles.resultContainer}>
           <ThemedView style={styles.answerSection}>
             <View style={styles.answerContent}>

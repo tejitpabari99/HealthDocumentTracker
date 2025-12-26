@@ -1,0 +1,1030 @@
+{
+  "name": "Health Tracker",
+  "version": "1",
+  "items": [
+    {
+      "type": "folder",
+      "name": "Documents",
+      "filename": "Documents",
+      "seq": 2,
+      "examples": [],
+      "root": {
+        "meta": {
+          "name": "Documents",
+          "seq": 2
+        }
+      },
+      "items": [
+        {
+          "type": "http",
+          "name": "Delete Document",
+          "filename": "Delete Document.bru",
+          "seq": 6,
+          "settings": {},
+          "tags": [],
+          "examples": [],
+          "request": {
+            "url": "http://localhost:5000/documents/{{document_id}}",
+            "method": "DELETE",
+            "headers": [],
+            "params": [],
+            "body": {
+              "mode": "none",
+              "formUrlEncoded": [],
+              "multipartForm": [],
+              "file": []
+            },
+            "script": {},
+            "vars": {},
+            "assertions": [],
+            "tests": "",
+            "docs": "Delete a document from all Azure services.\n\nPath Parameters:\n- document_id: The document ID from Cosmos DB\n\nReturns: JSON with deletion status for each service",
+            "auth": {
+              "mode": "none"
+            }
+          }
+        },
+        {
+          "type": "http",
+          "name": "Get Document by ID",
+          "filename": "Get Document by ID.bru",
+          "seq": 3,
+          "settings": {},
+          "tags": [],
+          "examples": [],
+          "request": {
+            "url": "http://localhost:5000/documents/{{document_id}}",
+            "method": "GET",
+            "headers": [],
+            "params": [],
+            "body": {
+              "mode": "none",
+              "formUrlEncoded": [],
+              "multipartForm": [],
+              "file": []
+            },
+            "script": {},
+            "vars": {},
+            "assertions": [],
+            "tests": "",
+            "docs": "Get a single document by ID.\n\nPath Parameters:\n- document_id: The document ID to retrieve",
+            "auth": {
+              "mode": "none"
+            }
+          }
+        },
+        {
+          "type": "http",
+          "name": "Get Document by Report ID",
+          "filename": "Get Document by Report ID.bru",
+          "seq": 4,
+          "settings": {},
+          "tags": [],
+          "examples": [],
+          "request": {
+            "url": "http://localhost:5000/documents/by-report/{{report_id}}",
+            "method": "GET",
+            "headers": [],
+            "params": [],
+            "body": {
+              "mode": "none",
+              "formUrlEncoded": [],
+              "multipartForm": [],
+              "file": []
+            },
+            "script": {},
+            "vars": {},
+            "assertions": [],
+            "tests": "",
+            "docs": "Get a document by report ID.\n\nPath Parameters:\n- report_id: The report ID to search for",
+            "auth": {
+              "mode": "none"
+            }
+          }
+        },
+        {
+          "type": "http",
+          "name": "List Documents",
+          "filename": "List Documents.bru",
+          "seq": 2,
+          "settings": {},
+          "tags": [],
+          "examples": [],
+          "request": {
+            "url": "http://localhost:5000/documents",
+            "method": "GET",
+            "headers": [],
+            "params": [],
+            "body": {
+              "mode": "none",
+              "formUrlEncoded": [],
+              "multipartForm": [],
+              "file": []
+            },
+            "script": {},
+            "vars": {},
+            "assertions": [],
+            "tests": "",
+            "docs": "List all documents for a user.\n\nQuery Parameters:\n- userId: (required) The user ID to filter by\n- limit: (optional) Maximum number of documents to return (default: 100)\n- status: (optional) Filter by status (default: 'active')",
+            "auth": {
+              "mode": "none"
+            }
+          }
+        },
+        {
+          "type": "http",
+          "name": "Update Document",
+          "filename": "Update Document.bru",
+          "seq": 5,
+          "settings": {},
+          "tags": [],
+          "examples": [],
+          "request": {
+            "url": "http://localhost:5000/documents/{{document_id}}",
+            "method": "PATCH",
+            "headers": [
+              {
+                "name": "Content-Type",
+                "value": "application/json",
+                "enabled": true
+              }
+            ],
+            "params": [],
+            "body": {
+              "mode": "json",
+              "json": "{\n  \"displayName\": \"Updated Document Name\",\n  \"status\": \"active\"\n}",
+              "formUrlEncoded": [],
+              "multipartForm": [],
+              "file": []
+            },
+            "script": {},
+            "vars": {},
+            "assertions": [],
+            "tests": "",
+            "docs": "Update a document's information.\n\nPath Parameters:\n- document_id: The document ID to update\n\nRequest Body:\n- displayName: (optional) New display name\n- status: (optional) New status",
+            "auth": {
+              "mode": "none"
+            }
+          }
+        },
+        {
+          "type": "http",
+          "name": "Upload Document",
+          "filename": "Upload Document.bru",
+          "seq": 1,
+          "settings": {},
+          "tags": [],
+          "examples": [],
+          "request": {
+            "url": "http://{{host}}/documents",
+            "method": "POST",
+            "headers": [],
+            "params": [],
+            "body": {
+              "mode": "multipartForm",
+              "formUrlEncoded": [],
+              "multipartForm": [
+                {
+                  "type": "file",
+                  "name": "file",
+                  "value": [
+                    "C:\\Users\\tejitpabari\\Downloads\\Prescriptions - Microsoft.png"
+                  ],
+                  "enabled": true
+                }
+              ],
+              "file": []
+            },
+            "script": {},
+            "vars": {},
+            "assertions": [],
+            "tests": "",
+            "docs": "Upload and process a document across all Azure services.\n\nExpected: multipart/form-data with 'file' and 'userId' fields\nReturns: JSON with document metadata and processing results",
+            "auth": {
+              "mode": "none"
+            }
+          }
+        }
+      ]
+    },
+    {
+      "type": "folder",
+      "name": "Admin",
+      "filename": "Admin",
+      "seq": 1,
+      "examples": [],
+      "root": {
+        "meta": {
+          "name": "Admin",
+          "seq": 1
+        }
+      },
+      "items": [
+        {
+          "type": "folder",
+          "name": "Blobs",
+          "filename": "Blobs",
+          "seq": 4,
+          "examples": [],
+          "root": {
+            "meta": {
+              "name": "Blobs",
+              "seq": 4
+            }
+          },
+          "items": [
+            {
+              "type": "http",
+              "name": "Delete All Blobs",
+              "filename": "Delete All Blobs.bru",
+              "seq": 2,
+              "settings": {},
+              "tags": [],
+              "examples": [],
+              "request": {
+                "url": "http://{{host}}/admin/blobs",
+                "method": "DELETE",
+                "headers": [],
+                "params": [
+                  {
+                    "name": "userId",
+                    "value": "{{user_id}}",
+                    "type": "query",
+                    "enabled": false
+                  }
+                ],
+                "body": {
+                  "mode": "none",
+                  "formUrlEncoded": [],
+                  "multipartForm": [],
+                  "file": []
+                },
+                "script": {},
+                "vars": {},
+                "assertions": [],
+                "tests": "",
+                "docs": "Delete all blobs from Azure Blob Storage.\n\nQuery Parameters:\n- userId: (optional) User ID whose blobs should be deleted. If not provided, deletes ALL blobs across all users.\n\nReturns: JSON with deletion results",
+                "auth": {
+                  "mode": "none"
+                }
+              }
+            },
+            {
+              "type": "http",
+              "name": "Get All Blobs",
+              "filename": "Get All Blobs.bru",
+              "seq": 1,
+              "settings": {},
+              "tags": [],
+              "examples": [],
+              "request": {
+                "url": "http://{{host}}/admin/blobs?userId={{user_id}}",
+                "method": "GET",
+                "headers": [],
+                "params": [
+                  {
+                    "name": "userId",
+                    "value": "{{user_id}}",
+                    "type": "query",
+                    "enabled": true
+                  },
+                  {
+                    "name": "limit",
+                    "value": "100",
+                    "type": "query",
+                    "enabled": false
+                  }
+                ],
+                "body": {
+                  "mode": "none",
+                  "formUrlEncoded": [],
+                  "multipartForm": [],
+                  "file": []
+                },
+                "script": {},
+                "vars": {},
+                "assertions": [],
+                "tests": "",
+                "docs": "Get all blobs across all users or for a specific user.\n\nQuery Parameters:\n- userId: (optional) Filter blobs by user ID (matches blob name prefix)\n- limit: (optional) Maximum number of blobs to return (default: 100, max: 1000)\n\nReturns: JSON with list of blobs including name, size, content type, and timestamps",
+                "auth": {
+                  "mode": "none"
+                }
+              }
+            }
+          ]
+        },
+        {
+          "type": "folder",
+          "name": "Search Activities",
+          "filename": "Search Activities",
+          "seq": 5,
+          "examples": [],
+          "root": {
+            "meta": {
+              "name": "Search Activities",
+              "seq": 5
+            }
+          },
+          "items": [
+            {
+              "type": "http",
+              "name": "List All Search Activities",
+              "filename": "List All Search Activities.bru",
+              "seq": 1,
+              "settings": {},
+              "tags": [],
+              "examples": [],
+              "request": {
+                "url": "http://{{host}}/admin/search-activities",
+                "method": "GET",
+                "headers": [],
+                "params": [
+                  {
+                    "name": "userId",
+                    "value": "",
+                    "type": "query",
+                    "enabled": false
+                  },
+                  {
+                    "name": "limit",
+                    "value": "100",
+                    "type": "query",
+                    "enabled": false
+                  }
+                ],
+                "body": {
+                  "mode": "none",
+                  "formUrlEncoded": [],
+                  "multipartForm": [],
+                  "file": []
+                },
+                "script": {},
+                "vars": {},
+                "assertions": [],
+                "tests": "",
+                "docs": "List all search activities across all users with pagination support.\n\nQuery Parameters:\n- userId: (optional) Filter by specific user ID\n- limit: (optional) Maximum number of activities to return (default: 100, max: 1000)\n\nReturns: JSON with list of search activities including queries, results, and user interactions",
+                "auth": {
+                  "mode": "none"
+                }
+              }
+            }
+          ]
+        },
+        {
+          "type": "folder",
+          "name": "Documents",
+          "filename": "Documents",
+          "seq": 2,
+          "examples": [],
+          "root": {
+            "meta": {
+              "name": "Documents",
+              "seq": 2
+            }
+          },
+          "items": [
+            {
+              "type": "http",
+              "name": "Delete All Documents",
+              "filename": "Delete All Documents.bru",
+              "seq": 2,
+              "settings": {},
+              "tags": [],
+              "examples": [],
+              "request": {
+                "url": "http://{{host}}/admin/documents",
+                "method": "DELETE",
+                "headers": [],
+                "params": [
+                  {
+                    "name": "userId",
+                    "value": "{{user_id}}",
+                    "type": "query",
+                    "enabled": false
+                  }
+                ],
+                "body": {
+                  "mode": "none",
+                  "formUrlEncoded": [],
+                  "multipartForm": [],
+                  "file": []
+                },
+                "script": {},
+                "vars": {},
+                "assertions": [],
+                "tests": "",
+                "docs": "Delete all documents from all Azure services.\n\nQuery Parameters:\n- userId: (optional) User ID whose documents should be deleted. If not provided, deletes ALL documents across all users.\n\nReturns: JSON with deletion results including counts for Cosmos DB, Blob Storage, and Search Index",
+                "auth": {
+                  "mode": "none"
+                }
+              }
+            },
+            {
+              "type": "http",
+              "name": "Get All Documents",
+              "filename": "Get All Documents.bru",
+              "seq": 1,
+              "settings": {},
+              "tags": [],
+              "examples": [],
+              "request": {
+                "url": "http://{{host}}/admin/documents",
+                "method": "GET",
+                "headers": [],
+                "params": [
+                  {
+                    "name": "userId",
+                    "value": "{{user_id}}",
+                    "type": "query",
+                    "enabled": false
+                  },
+                  {
+                    "name": "limit",
+                    "value": "100",
+                    "type": "query",
+                    "enabled": false
+                  },
+                  {
+                    "name": "status",
+                    "value": "active",
+                    "type": "query",
+                    "enabled": false
+                  }
+                ],
+                "body": {
+                  "mode": "none",
+                  "formUrlEncoded": [],
+                  "multipartForm": [],
+                  "file": []
+                },
+                "script": {},
+                "vars": {},
+                "assertions": [],
+                "tests": "",
+                "docs": "Get all documents across all users or for a specific user.\n\nQuery Parameters:\n- userId: (optional) Filter documents by user ID\n- limit: (optional) Maximum number of documents to return (default: 100, max: 1000)\n- status: (optional) Filter by status (default: 'active')\n\nReturns: JSON with list of documents",
+                "auth": {
+                  "mode": "none"
+                }
+              }
+            }
+          ]
+        },
+        {
+          "type": "folder",
+          "name": "Users",
+          "filename": "Users",
+          "seq": 1,
+          "examples": [],
+          "root": {
+            "meta": {
+              "name": "Users",
+              "seq": 1
+            }
+          },
+          "items": [
+            {
+              "type": "http",
+              "name": "List All Users",
+              "filename": "List All Users.bru",
+              "seq": 1,
+              "settings": {},
+              "tags": [],
+              "examples": [],
+              "request": {
+                "url": "http://{{host}}/admin/users",
+                "method": "GET",
+                "headers": [],
+                "params": [
+                  {
+                    "name": "limit",
+                    "value": "100",
+                    "type": "query",
+                    "enabled": false
+                  },
+                  {
+                    "name": "continuationToken",
+                    "value": "",
+                    "type": "query",
+                    "enabled": false
+                  }
+                ],
+                "body": {
+                  "mode": "none",
+                  "formUrlEncoded": [],
+                  "multipartForm": [],
+                  "file": []
+                },
+                "script": {},
+                "vars": {},
+                "assertions": [],
+                "tests": "",
+                "docs": "List all users with pagination support.\n\nQuery Parameters:\n- limit: (optional) Maximum number of users to return (default: 100, max: 1000)\n- continuationToken: (optional) Token for pagination\n\nReturns: List of users with pagination info",
+                "auth": {
+                  "mode": "none"
+                }
+              }
+            }
+          ]
+        },
+        {
+          "type": "folder",
+          "name": "Search",
+          "filename": "Search",
+          "seq": 3,
+          "examples": [],
+          "root": {
+            "meta": {
+              "name": "Search",
+              "seq": 3
+            }
+          },
+          "items": [
+            {
+              "type": "http",
+              "name": "Delete All Search Entries",
+              "filename": "Delete All Search Entries.bru",
+              "seq": 2,
+              "settings": {},
+              "tags": [],
+              "examples": [],
+              "request": {
+                "url": "http://{{host}}/admin/search",
+                "method": "DELETE",
+                "headers": [],
+                "params": [
+                  {
+                    "name": "userId",
+                    "value": "{{user_id}}",
+                    "type": "query",
+                    "enabled": false
+                  }
+                ],
+                "body": {
+                  "mode": "none",
+                  "formUrlEncoded": [],
+                  "multipartForm": [],
+                  "file": []
+                },
+                "script": {},
+                "vars": {},
+                "assertions": [],
+                "tests": "",
+                "docs": "Delete all search index entries from Azure AI Search.\n\nQuery Parameters:\n- userId: (optional) User ID whose search entries should be deleted. If not provided, deletes ALL entries across all users.\n\nReturns: JSON with deletion results",
+                "auth": {
+                  "mode": "none"
+                }
+              }
+            },
+            {
+              "type": "http",
+              "name": "Get All Search Entries",
+              "filename": "Get All Search Entries.bru",
+              "seq": 1,
+              "settings": {},
+              "tags": [],
+              "examples": [],
+              "request": {
+                "url": "http://{{host}}/admin/search",
+                "method": "GET",
+                "headers": [],
+                "params": [
+                  {
+                    "name": "userId",
+                    "value": "{{user_id}}",
+                    "type": "query",
+                    "enabled": false
+                  },
+                  {
+                    "name": "limit",
+                    "value": "100",
+                    "type": "query",
+                    "enabled": false
+                  }
+                ],
+                "body": {
+                  "mode": "none",
+                  "formUrlEncoded": [],
+                  "multipartForm": [],
+                  "file": []
+                },
+                "script": {},
+                "vars": {},
+                "assertions": [],
+                "tests": "",
+                "docs": "Get all search index entries across all users or for a specific user.\n\nQuery Parameters:\n- userId: (optional) Filter search entries by user ID\n- limit: (optional) Maximum number of entries to return (default: 100, max: 1000)\n\nReturns: JSON with list of search index entries",
+                "auth": {
+                  "mode": "none"
+                }
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "type": "folder",
+      "name": "Search",
+      "filename": "Search",
+      "seq": 3,
+      "examples": [],
+      "root": {
+        "meta": {
+          "name": "Search",
+          "seq": 3
+        }
+      },
+      "items": [
+        {
+          "type": "http",
+          "name": "Search Documents",
+          "filename": "Search Documents.bru",
+          "seq": 1,
+          "settings": {},
+          "tags": [],
+          "examples": [],
+          "request": {
+            "url": "http://localhost:5000/search",
+            "method": "POST",
+            "headers": [
+              {
+                "name": "Content-Type",
+                "value": "application/json",
+                "enabled": true
+              }
+            ],
+            "params": [],
+            "body": {
+              "mode": "json",
+              "json": "{\n  \"query\": \"HPV\"\n}",
+              "formUrlEncoded": [],
+              "multipartForm": [],
+              "file": []
+            },
+            "script": {},
+            "vars": {},
+            "assertions": [],
+            "tests": "",
+            "docs": "Search for documents using AI-powered search.\n\nExpected: JSON body with 'query' field\nOptional fields: userId, deviceType, appVersion\n\nReturns: JSON response with formatted answer and document references",
+            "auth": {
+              "mode": "none"
+            }
+          }
+        }
+      ]
+    },
+    {
+      "type": "folder",
+      "name": "Search Activities",
+      "filename": "Search Activities",
+      "seq": 4,
+      "examples": [],
+      "root": {
+        "meta": {
+          "name": "Search Activities",
+          "seq": 4
+        }
+      },
+      "items": [
+        {
+          "type": "http",
+          "name": "Create Search Activity",
+          "filename": "Create Search Activity.bru",
+          "seq": 1,
+          "settings": {},
+          "tags": [],
+          "examples": [],
+          "request": {
+            "url": "http://localhost:5000/search-activities",
+            "method": "POST",
+            "headers": [
+              {
+                "name": "Content-Type",
+                "value": "application/json",
+                "enabled": true
+              }
+            ],
+            "params": [],
+            "body": {
+              "mode": "json",
+              "json": "{\n  \"userId\": \"user123\",\n  \"searchId\": \"search-abc123\",\n  \"originalQuery\": \"RBC in stool?\",\n  \"refinedQuery\": {\n    \"search_phrases\": [\"RBC\", \"stool\"],\n    \"search_filters\": {}\n  },\n  \"resultsFound\": true,\n  \"resultsDocumentIds\": [\"doc123\"],\n  \"resultNumDocuments\": 1,\n  \"totalResultsReturned\": 1,\n  \"deviceType\": \"mobile\",\n  \"appVersion\": \"1.0.0\",\n  \"searchDurationMs\": 500\n}",
+              "formUrlEncoded": [],
+              "multipartForm": [],
+              "file": []
+            },
+            "script": {},
+            "vars": {},
+            "assertions": [],
+            "tests": "",
+            "docs": "Create a new search activity record.\n\nRequired fields: userId, searchId, originalQuery, refinedQuery, resultsFound",
+            "auth": {
+              "mode": "none"
+            }
+          }
+        },
+        {
+          "type": "http",
+          "name": "Get Search Activity by ID",
+          "filename": "Get Search Activity by ID.bru",
+          "seq": 2,
+          "settings": {},
+          "tags": [],
+          "examples": [],
+          "request": {
+            "url": "http://localhost:5000/search-activities/{search_id}",
+            "method": "GET",
+            "headers": [],
+            "params": [],
+            "body": {
+              "mode": "none",
+              "formUrlEncoded": [],
+              "multipartForm": [],
+              "file": []
+            },
+            "script": {},
+            "vars": {},
+            "assertions": [],
+            "tests": "",
+            "docs": "Get a single search activity by ID.\n\nPath Parameters:\n- search_id: The search activity ID to retrieve",
+            "auth": {
+              "mode": "none"
+            }
+          }
+        },
+        {
+          "type": "http",
+          "name": "Update Search Activity",
+          "filename": "Update Search Activity.bru",
+          "seq": 3,
+          "settings": {},
+          "tags": [],
+          "examples": [],
+          "request": {
+            "url": "http://localhost:5000/search-activities/{search_id}",
+            "method": "PATCH",
+            "headers": [
+              {
+                "name": "Content-Type",
+                "value": "application/json",
+                "enabled": true
+              }
+            ],
+            "params": [],
+            "body": {
+              "mode": "json",
+              "json": "{\n  \"userOpenedDocument\": true,\n  \"documentOpenedIds\": [\"doc123\"],\n  \"timeToClickFirstDocumentMs\": 2500,\n  \"wasAnswerHelpful\": true\n}",
+              "formUrlEncoded": [],
+              "multipartForm": [],
+              "file": []
+            },
+            "script": {},
+            "vars": {},
+            "assertions": [],
+            "tests": "",
+            "docs": "Update search activity with user interaction metrics.\n\nTracks user engagement: document opens, click timing, and feedback on answer quality.\n\nPath Parameters:\n- search_id: The search activity ID to update\n\nRequest Body (all optional):\n- userOpenedDocument: Whether user opened a document\n- documentOpenedIds: List of document IDs opened\n- timeToClickFirstDocumentMs: Time taken to click first document\n- wasAnswerHelpful: User feedback on answer helpfulness",
+            "auth": {
+              "mode": "none"
+            }
+          }
+        }
+      ]
+    },
+    {
+      "type": "folder",
+      "name": "Users",
+      "filename": "Users",
+      "seq": 5,
+      "examples": [],
+      "root": {
+        "meta": {
+          "name": "Users",
+          "seq": 5
+        }
+      },
+      "items": [
+        {
+          "type": "http",
+          "name": "Create User",
+          "filename": "Create User.bru",
+          "seq": 1,
+          "settings": {},
+          "tags": [],
+          "examples": [],
+          "request": {
+            "url": "http://localhost:5000/users",
+            "method": "POST",
+            "headers": [
+              {
+                "name": "Content-Type",
+                "value": "application/json",
+                "enabled": true
+              }
+            ],
+            "params": [],
+            "body": {
+              "mode": "json",
+              "json": "{\n  \"email\": \"testuser@test.com\",\n  \"firstName\": \"Test\",\n  \"lastName\": \"User\"\n}",
+              "formUrlEncoded": [],
+              "multipartForm": [],
+              "file": []
+            },
+            "script": {},
+            "vars": {},
+            "assertions": [],
+            "tests": "",
+            "docs": "Create a new user.\n\nRequired fields: email, firstName, lastName",
+            "auth": {
+              "mode": "none"
+            }
+          }
+        },
+        {
+          "type": "http",
+          "name": "Delete User",
+          "filename": "Delete User.bru",
+          "seq": 5,
+          "settings": {},
+          "tags": [],
+          "examples": [],
+          "request": {
+            "url": "http://localhost:5000/users/{{user_id}}",
+            "method": "DELETE",
+            "headers": [],
+            "params": [],
+            "body": {
+              "mode": "none",
+              "formUrlEncoded": [],
+              "multipartForm": [],
+              "file": []
+            },
+            "script": {},
+            "vars": {},
+            "assertions": [],
+            "tests": "",
+            "docs": "Delete a user.\n\nPath parameter:\n- user_id: The user ID to delete",
+            "auth": {
+              "mode": "none"
+            }
+          }
+        },
+        {
+          "type": "http",
+          "name": "Get User by Email",
+          "filename": "Get User by Email.bru",
+          "seq": 3,
+          "settings": {},
+          "tags": [],
+          "examples": [],
+          "request": {
+            "url": "http://localhost:5000/users/email/{{user_email}}",
+            "method": "GET",
+            "headers": [],
+            "params": [],
+            "body": {
+              "mode": "none",
+              "formUrlEncoded": [],
+              "multipartForm": [],
+              "file": []
+            },
+            "script": {},
+            "vars": {},
+            "assertions": [],
+            "tests": "",
+            "docs": "Retrieve a user by email address.\n\nPath parameter:\n- email: The email address to search for",
+            "auth": {
+              "mode": "none"
+            }
+          }
+        },
+        {
+          "type": "http",
+          "name": "Get User by ID",
+          "filename": "Get User by ID.bru",
+          "seq": 2,
+          "settings": {},
+          "tags": [],
+          "examples": [],
+          "request": {
+            "url": "http://localhost:5000/users/{{user_id}}",
+            "method": "GET",
+            "headers": [],
+            "params": [],
+            "body": {
+              "mode": "none",
+              "formUrlEncoded": [],
+              "multipartForm": [],
+              "file": []
+            },
+            "script": {},
+            "vars": {},
+            "assertions": [],
+            "tests": "",
+            "docs": "Retrieve a user by ID.\n\nPath parameter:\n- user_id: The user ID to retrieve",
+            "auth": {
+              "mode": "none"
+            }
+          }
+        },
+        {
+          "type": "http",
+          "name": "Update User",
+          "filename": "Update User.bru",
+          "seq": 4,
+          "settings": {},
+          "tags": [],
+          "examples": [],
+          "request": {
+            "url": "http://localhost:5000/users/{{user_id}}",
+            "method": "PATCH",
+            "headers": [
+              {
+                "name": "Content-Type",
+                "value": "application/json",
+                "enabled": true
+              }
+            ],
+            "params": [],
+            "body": {
+              "mode": "json",
+              "json": "{\n  \"firstName\": \"Test2\"\n}",
+              "formUrlEncoded": [],
+              "multipartForm": [],
+              "file": []
+            },
+            "script": {},
+            "vars": {},
+            "assertions": [],
+            "tests": "",
+            "docs": "Update user information (partial update).\n\nPath parameter:\n- user_id: The user ID to update\n\nRequest body (all fields optional):\n- email, firstName, lastName, settings",
+            "auth": {
+              "mode": "none"
+            }
+          }
+        }
+      ]
+    }
+  ],
+  "activeEnvironmentUid": "8bIkWZNDwQdwpr1CjZFG5",
+  "environments": [
+    {
+      "variables": [
+        {
+          "name": "host",
+          "value": "localhost:5000",
+          "enabled": true,
+          "secret": false,
+          "type": "text"
+        },
+        {
+          "name": "user_id",
+          "value": "user-194b85f1-faab-4c3b-8c19-d2e8ad8d5459",
+          "enabled": true,
+          "secret": false,
+          "type": "text"
+        },
+        {
+          "name": "user_email",
+          "value": "testuser@test.com",
+          "enabled": true,
+          "secret": false,
+          "type": "text"
+        },
+        {
+          "name": "document_id",
+          "value": "doc-d10f77a4-2fd8-4266-814e-824ba2d02e1b",
+          "enabled": true,
+          "secret": false,
+          "type": "text"
+        },
+        {
+          "name": "api-key",
+          "value": "",
+          "enabled": true,
+          "secret": true,
+          "type": "text"
+        }
+      ],
+      "name": "HealthTracker"
+    }
+  ],
+  "root": {
+    "request": {
+      "headers": [
+        {
+          "name": "X-User-Id",
+          "value": "{{user_id}}",
+          "enabled": true,
+          "uid": "G91jbhuv4Q5eDLcxZ5C9B"
+        }
+      ]
+    }
+  },
+  "brunoConfig": {
+    "version": "1",
+    "name": "Health Tracker",
+    "type": "collection",
+    "ignore": [
+      "node_modules",
+      ".git"
+    ]
+  }
+}
