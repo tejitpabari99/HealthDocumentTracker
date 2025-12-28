@@ -111,7 +111,7 @@
           "tags": [],
           "examples": [],
           "request": {
-            "url": "http://localhost:5000/documents",
+            "url": "http://{{host}}/documents",
             "method": "GET",
             "headers": [],
             "params": [],
@@ -970,7 +970,7 @@
         {
           "name": "host",
           "value": "localhost:5000",
-          "enabled": true,
+          "enabled": false,
           "secret": false,
           "type": "text"
         },
@@ -991,6 +991,13 @@
         {
           "name": "document_id",
           "value": "doc-d10f77a4-2fd8-4266-814e-824ba2d02e1b",
+          "enabled": true,
+          "secret": false,
+          "type": "text"
+        },
+        {
+          "name": "host",
+          "value": "meddoctracker-fxefakchd9cufahb.eastus-01.azurewebsites.net",
           "enabled": true,
           "secret": false,
           "type": "text"
